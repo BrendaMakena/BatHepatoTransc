@@ -67,17 +67,5 @@ str(tagseqRNAfeature_counts)
 write.table(tagseqRNAfeature_counts, file = "/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/tagseq_RNA_feature_counts.txt", 
             sep = "\t", quote = FALSE, row.names = TRUE)
 
-
-write.csv(tagseqRNAfeature_counts, file = "/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/tagseq_RNA_feature_counts.csv", 
-            quote = FALSE, row.names = TRUE)
-
-
-#to view the tagseq feature counts table
-tagseq_RNA_feature_counts_table <- read.table("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/tagseq_RNA_feature_counts.txt", 
-                                          header = T, sep = "\t", row.names = 1)
-
-#Printing the loaded table
-print(tagseq_RNA_feature_counts_table)
-
-
+saveRDS("intermediateData/countTable.RDS")
 
