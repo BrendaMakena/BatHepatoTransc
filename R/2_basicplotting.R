@@ -14,78 +14,85 @@ library(ggplot2)
 library(GGally)
 
 #loading the dataframe (file containing the read counts) from the features count step
-tagseq_RNA_feature_counts_table <- read.table("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/tagseq_RNA_feature_counts.txt", 
-                                              header = T, sep = "\t", row.names = 1)
+url <- "https://github.com/BrendaMakena/BatHepatoTransc/raw/main/intermediateData/countTable.RDS"
+download.file(url, destfile = "countTable.RDS")
+tagseqRNAfeatureCounts <- readRDS("countTable.RDS")
+
+
 #Printing the loaded table
-print(tagseq_RNA_feature_counts_table)
+print(tagseqRNAfeatureCounts)
 
 #renaming the column names (sample IDs) to shorten them
-colnames(tagseq_RNA_feature_counts_table)
+colnames(tagseqRNAfeatureCounts)
    
        #removing all unwanted characters from the end
-names(tagseq_RNA_feature_counts_table) = gsub(pattern = "_S.*", 
+names(tagseqRNAfeatureCounts) = gsub(pattern = "_S.*", 
                  replacement = "", 
-                 x = names(tagseq_RNA_feature_counts_table))
+                 x = names(tagseqRNAfeatureCounts))
     
        #removing all unwanted characters from the start
-names(tagseq_RNA_feature_counts_table) = gsub(pattern = "^.*D", 
+names(tagseqRNAfeatureCounts) = gsub(pattern = "^.*D", 
                                               replacement = "D", 
-                                              x = names(tagseq_RNA_feature_counts_table))
+                                              x = names(tagseqRNAfeatureCounts))
 #renaming column 1 for gene ID
-colnames(tagseq_RNA_feature_counts_table)[1] <- "GeneID"
+colnames(tagseqRNAfeatureCounts)[1] <- "GeneID"
 
-#viewing the table
-colnames(tagseq_RNA_feature_counts_table)
+#viewing the table column names
+colnames(tagseqRNAfeatureCounts)
 
 
 #Setting the gene IDs column as the row names of the feature counts table
-rownames(tagseq_RNA_feature_counts_table) <- tagseq_RNA_feature_counts_table[,1]
+rownames(tagseqRNAfeatureCounts) <- tagseqRNAfeatureCounts[,1]
 
 #Removing the gene ID column from the feature counts table
-#tagseq_RNA_feature_counts_table <- tagseq_RNA_feature_counts_table[,-1]
+#tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[,-1]
 
 
 #getting the hepatocystis transcripts
-tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))
+#tagseqRNAfeatureCounts %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))
+
+#getting the Rousettus transcripts
+#tagseqRNAfeatureCounts %>% filter(!grepl("HEP_",GeneID,ignore.case = TRUE))
+
 
 #loading metadata file
-metadata <- read.csv("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/tagseqRNA_metadata2023.csv",
-                     header = T,sep = ",")
+metadata <- read.csv("https://raw.githubusercontent.com/BrendaMakena/BatHepatoTransc/main/inputdata/tagseqRNA_metadata2023.csv")
+#alternatively importing from the server directory
+#metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
 
-#renaming sample id column
-colnames(metadata)[1] = "SampleID"
 
 #getting the rowsums for the genes counts table
-table(rowSums(tagseq_RNA_feature_counts_table[-1]))
+table(rowSums(tagseqRNAfeatureCounts[-1]))
 
 #transcripts with counts >5 for both Hepatocystis and Rousettus
-table(rowSums(tagseq_RNA_feature_counts_table[-1])>5)
+table(rowSums(tagseqRNAfeatureCounts[-1])>5)
 
 #transcripts with counts >5 for Hepatocystis
-table(rowSums(tagseq_RNA_feature_counts_table[-1])>5,
-      grepl("HEP_",tagseq_RNA_feature_counts_table$GeneID))
+table(rowSums(tagseqRNAfeatureCounts[-1])>5,
+      grepl("HEP_",tagseqRNAfeatureCounts$GeneID))
 
 #transcripts with counts >5 for Rousettus
-table(rowSums(tagseq_RNA_feature_counts_table[-1])>5,
-      !grepl("HEP_",tagseq_RNA_feature_counts_table$GeneID))
+table(rowSums(tagseqRNAfeatureCounts[-1])>5,
+      !grepl("HEP_",tagseqRNAfeatureCounts$GeneID))
 
 
 #heatmap of 29 Hepatocystis transcripts >5
-pheatmap(log10(tagseq_RNA_feature_counts_table[-1][rowSums(tagseq_RNA_feature_counts_table[-1])>5 &
-         grepl("HEP_",tagseq_RNA_feature_counts_table$GeneID),]+1),
+pheatmap(log10(tagseqRNAfeatureCounts[-1][rowSums(tagseqRNAfeatureCounts[-1])>5 &
+         grepl("HEP_",tagseqRNAfeatureCounts$GeneID),]+1),
          show_colnames = F, show_rownames = T)
 
 #getting the column sums for the hepatocystis transcripts
-colSums(tagseq_RNA_feature_counts_table[-1][
-  grepl("HEP_",tagseq_RNA_feature_counts_table$GeneID),])
+colSums(tagseqRNAfeatureCounts[-1][
+  grepl("HEP_",tagseqRNAfeatureCounts$GeneID),])
 
 #adding a new column for the hepatocystis transcriptome parasitemia to the metadata file
-metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseq_RNA_feature_counts_table[-1][
-  grepl("HEP_",tagseq_RNA_feature_counts_table$GeneID),])
+metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseqRNAfeatureCounts[-1][
+  grepl("HEP_",tagseqRNAfeatureCounts$GeneID),])
 
 
-#viewing column names for the feature counts table
-colnames(tagseq_RNA_feature_counts_table) 
+#viewing column names for the feature counts table and metadata file
+colnames(tagseqRNAfeatureCounts) 
+colnames(metadata)
 
 #viewing the sample IDs in the metadata file
 (metadata$SampleID)
