@@ -3,7 +3,7 @@
 #https://hbctraining.github.io/Intro-to-rnaseq-hpc-O2/lessons/05_counting_reads.html 
 
 #first install and load the package Rsubread which has featuresCount as a built in package
-BiocManager::install("Rsubread")
+#BiocManager::install("Rsubread")
 library("Rsubread")
 featureCounts #to see the usage
 
@@ -58,14 +58,7 @@ if (nrow(tagseqRNAfeature_counts) == 0) {
 }
 }
 
+# Save the feature counts to a file 
+saveRDS(tagseqRNAfeature_counts, "intermediateData/countTable.RDS")
 
-str(tagseqRNAfeature_counts)
-
-
-# Save the feature counts to a file including modified headers
-
-write.table(tagseqRNAfeature_counts, file = "/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/tagseq_RNA_feature_counts.txt", 
-            sep = "\t", quote = FALSE, row.names = TRUE)
-
-saveRDS("intermediateData/countTable.RDS")
 
