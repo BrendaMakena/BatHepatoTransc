@@ -12,6 +12,7 @@ library(pheatmap)
 library(gplots) # for the heatmap.2 function
 library(ggplot2)
 library(GGally)
+library(dplyr)
 
 #loading the dataframe (file containing the read counts) from the features count step
 url <- "https://github.com/BrendaMakena/BatHepatoTransc/raw/main/intermediateData/countTable.RDS"
@@ -42,7 +43,7 @@ colnames(tagseqRNAfeatureCounts)
 
 
 #Setting the gene IDs column as the row names of the feature counts table
-rownames(tagseqRNAfeatureCounts) <- tagseqRNAfeatureCounts[,1]
+#rownames(tagseqRNAfeatureCounts) <- tagseqRNAfeatureCounts[,1]
 
 #Removing the gene ID column from the feature counts table
 #tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[,-1]
@@ -98,76 +99,40 @@ colnames(metadata)
 (metadata$SampleID)
 
 #xy plot
-ggplot(metadata,aes(x = hepatocystis_transcriptome_parasitemia,y = Parasitemia_blood_percentage))
+ggplot(metadata,aes(x = hepatocystis_transcriptome_parasitemia,y = Parasitemia_in_percent))
 
 
 #getting the median 
 tapply(metadata$hepatocystis_transcriptome_parasitemia,
-       metadata$Parasitemia_blood_percentage,median)
+       metadata$Parasitemia_in_percent,median)
 
 #getting the mean
 tapply(metadata$hepatocystis_transcriptome_parasitemia,
-       metadata$Parasitemia_blood_percentage,mean)
+       metadata$Parasitemia_in_percent,mean)
 
-ggplot(metadata,aes(y = hepatocystis_transcriptome_parasitemia,
-                    x = Parasitemia_blood_percentage))+ 
-  geom_boxplot() + 
+#plotting box plot
+
+ggplot(metadata, aes(y = hepatocystis_transcriptome_parasitemia, 
+                     x = factor(Parasitemia_in_percent))) + 
+  geom_boxplot() +
   scale_y_log10()
 
 
-ggpairs(metadata[-1]) #gives error
+#making a ggpairs plot
+ggpairs(metadata[-1]) #gives error because the 'Sample_ID_sequencing' column, 
+              #has more levels (unique values) than the default cardinality threshold allows
 
+#removing the column
+#ggpairs(metadata[-which(names(metadata) == 'Sample_ID_sequencing')])
 
-#Merging the hepatocystis transcripts feature counts dataframe with the metadata file using sample IDs
-#merged_df <- merge(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)), 
-#metadata, by.x = "SampleID", by.y = "SampleID")
+#alternatively increasing the cardinality threshold
+#ggpairs(metadata[-1], cardinality_threshold = 169) #this takes a lot of time plus outputs all columns even the unwanted
 
-#checking the column names for the files first
-colnames(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)))
-colnames(metadata)
+#to make ggpairs plot with only desired columns
+selected_columns <- c("SampleID","Organ","Infectious_status_blood",
+                      "Parasitemia_in_percent","Age_2category","Reproductive_status",
+                      "Sex","Season","hepatocystis_transcriptome_parasitemia")
 
-#Transposing the transcript data to have samples as rows and transcripts as columns
-#tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)), <- t(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)))
-
-#Setting the gene IDs column as the row names of the hepatocystis transcript data
-rownames(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))) <- tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))[,1]
-
-#Removing the gene ID column from the hepatocystis transcript data
-tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)) <- tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))[,-1]
-
-#Extracting the predictor variables from the metadata that correspond to the columns of the hepatocystis transcript data
-#first match column names between metadata and hepatocystis transcript data
-#tagseq_matching_cols <- intersect(colnames(metadata), colnames(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))))
-
-#Extracting the predictor variables from metadata
-#tagseq_predictor_variables <- metadata[, matching_cols]
-
-#extracting the predictor variables
-sample_ids <- metadata$SampleID  # Extract the sample IDs from the "Sample ID" column
-matching_cols <- sample_ids %in% colnames(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)))
-predictor_variables <- tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))[, matching_cols]
-
-
-# Convert the data frame to a matrix
-mat <- as.matrix(tagseq_RNA_feature_counts_table %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE)))
-
-# Extract the gene IDs from the row names of the matrix
-gene_ids <- rownames(mat)
-
-# Create a matrix for row annotations
-row_annotations <- matrix(NA, nrow = nrow(mat), ncol = length(predictor_variables))
-colnames(row_annotations) <- predictor_variables
-
-# Set the gene IDs as row annotations
-row_annotations[, "SampleID"] <- gene_ids
-
-# Plot the heatmap with annotations
-pheatmap(mat,
-         annotation_row = row_annotations,
-         annotation_col = predictor_variables)
-
-
-
-
+ggpairs(metadata[selected_columns],cardinality_threshold = 114)
 
 

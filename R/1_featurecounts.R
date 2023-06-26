@@ -58,7 +58,7 @@ if (nrow(tagseqRNAfeature_counts) == 0) {
 }
 }
 
-# Save the feature counts to a file 
+# Saving the feature counts to a file 
 saveRDS(tagseqRNAfeature_counts, "intermediateData/countTable.RDS")
 
 
