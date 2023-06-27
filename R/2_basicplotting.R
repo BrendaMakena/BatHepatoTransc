@@ -14,10 +14,16 @@ library(ggplot2)
 library(GGally)
 library(dplyr)
 
+#rerun script 1 for generating counts table or read from intermediate data
+readcount <- FALSE
+
 #loading the dataframe (file containing the read counts) from the features count step
-url <- "https://github.com/BrendaMakena/BatHepatoTransc/raw/main/intermediateData/countTable.RDS"
-download.file(url, destfile = "countTable.RDS")
-tagseqRNAfeatureCounts <- readRDS("countTable.RDS")
+if(readcount){
+  source("R/1_featurecounts.R")
+}else{
+  tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
+}
+
 
 
 #Printing the loaded table
