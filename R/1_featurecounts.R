@@ -25,7 +25,7 @@ bamFiles <- list.files(bamdirectory, pattern = ".bam$", full.names = TRUE)
 #Perform feature counts to generate feature counts for each BAM file, specifying merged GTF
 
 # Creating an empty data frame to store the feature counts
-tagseqRNAfeature_counts <- data.frame()
+tagseqRNAfeatureCounts <- data.frame()
 
 # List of files
 bamFiles
@@ -52,13 +52,34 @@ tagseqRNAfile_data <- data.frame(GeneID = tagseqRNAgene_ids, tagseqRNAfile_count
 
 #Merging the new data frame with the feature_counts data frame
 if (nrow(tagseqRNAfeature_counts) == 0) {
-  tagseqRNAfeature_counts <- tagseqRNAfile_data
+  tagseqRNAfeatureCounts <- tagseqRNAfile_data
 } else {
-  tagseqRNAfeature_counts <- merge(tagseqRNAfeature_counts, tagseqRNAfile_data, by = "GeneID", all = TRUE)
+  tagseqRNAfeatureCounts <- merge(tagseqRNAfeatureCounts, tagseqRNAfile_data, by = "GeneID", all = TRUE)
 }
 }
 
+
+#Setting the gene IDs column as the row names of the feature counts table
+rownames(tagseqRNAfeatureCounts) <- tagseqRNAfeatureCounts[,"GeneID"]
+
+#Removing the gene ID column from the feature counts table
+tagseqRNAfeatureCounts$GeneID <- NULL
+
+
+#renaming the column names (sample IDs) to shorten them
+
+#removing all unwanted characters from the end
+names(tagseqRNAfeatureCounts) = gsub(pattern = "_S.*", 
+                                     replacement = "", 
+                                     x = names(tagseqRNAfeatureCounts))
+
+#removing all unwanted characters from the start
+names(tagseqRNAfeatureCounts) = gsub(pattern = "^.*D", 
+                                     replacement = "D", 
+                                     x = names(tagseqRNAfeatureCounts))
+
+
 # Saving the feature counts to a file 
-saveRDS(tagseqRNAfeature_counts, "intermediateData/countTable.RDS")
+saveRDS(tagseqRNAfeatureCounts, "intermediateData/countTable.RDS")
 
 

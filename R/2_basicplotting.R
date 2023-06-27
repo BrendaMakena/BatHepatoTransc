@@ -26,33 +26,11 @@ if(readcount){
 
 
 
+
 #Printing the loaded table
 print(tagseqRNAfeatureCounts)
 
-#renaming the column names (sample IDs) to shorten them
-colnames(tagseqRNAfeatureCounts)
-   
-       #removing all unwanted characters from the end
-names(tagseqRNAfeatureCounts) = gsub(pattern = "_S.*", 
-                 replacement = "", 
-                 x = names(tagseqRNAfeatureCounts))
-    
-       #removing all unwanted characters from the start
-names(tagseqRNAfeatureCounts) = gsub(pattern = "^.*D", 
-                                              replacement = "D", 
-                                              x = names(tagseqRNAfeatureCounts))
-#renaming column 1 for gene ID
-colnames(tagseqRNAfeatureCounts)[1] <- "GeneID"
 
-#viewing the table column names
-colnames(tagseqRNAfeatureCounts)
-
-
-#Setting the gene IDs column as the row names of the feature counts table
-#rownames(tagseqRNAfeatureCounts) <- tagseqRNAfeatureCounts[,1]
-
-#Removing the gene ID column from the feature counts table
-#tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[,-1]
 
 
 #getting the hepatocystis transcripts
