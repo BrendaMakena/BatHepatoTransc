@@ -24,13 +24,43 @@ if(readcount){
   tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
 }
 
+#loading metadata file
+metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
+
+colnames(metadata)
+metadata$SampleID
+
+colnames(tagseqRNAfeatureCounts)
+
+metadata$ID <- paste(metadata$SampleID, 
+                     substring(metadata$Organ, 1,1),
+      sep = ".")
 
 
+# all(metadata$ID %in% colnames(tagseqRNAfeatureCounts))
+# all(colnames(tagseqRNAfeatureCounts) %in% metadata$ID)
 
-#Printing the loaded table
-print(tagseqRNAfeatureCounts)
+cbind(colnames(tagseqRNAfeatureCounts) == metadata$ID,
+    colnames(tagseqRNAfeatureCounts), metadata$ID)
 
+all(colnames(tagseqRNAfeatureCounts) == metadata$ID)
 
+  # we have technical replicates for some samples
+  # colnames in the count data have been made unique by R 
+  # by appending ".1" to them
+
+metadata$ID <- make.unique(metadata$ID)
+
+metadata <- metadata[order(metadata$ID),]
+
+tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[,order(colnames(tagseqRNAfeatureCounts))]
+
+table(grepl("\\.1",metadata$ID))
+
+cbind(colnames(tagseqRNAfeatureCounts) == metadata$ID,
+      colnames(tagseqRNAfeatureCounts), metadata$ID)
+
+all(colnames(tagseqRNAfeatureCounts) == metadata$ID)
 
 
 #getting the hepatocystis transcripts
@@ -40,39 +70,33 @@ print(tagseqRNAfeatureCounts)
 #tagseqRNAfeatureCounts %>% filter(!grepl("HEP_",GeneID,ignore.case = TRUE))
 
 
-#loading metadata file
-metadata <- read.csv("https://raw.githubusercontent.com/BrendaMakena/BatHepatoTransc/main/inputdata/tagseqRNA_metadata2023.csv")
-#alternatively importing from the server directory
-#metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
-
-
 #getting the rowsums for the genes counts table
-table(rowSums(tagseqRNAfeatureCounts[-1]))
+table(rowSums(tagseqRNAfeatureCounts))
 
 #transcripts with counts >5 for both Hepatocystis and Rousettus
-table(rowSums(tagseqRNAfeatureCounts[-1])>5)
+table(rowSums(tagseqRNAfeatureCounts)>5)
 
 #transcripts with counts >5 for Hepatocystis
-table(rowSums(tagseqRNAfeatureCounts[-1])>5,
-      grepl("HEP_",tagseqRNAfeatureCounts$GeneID))
+table(rowSums(tagseqRNAfeatureCounts)>5,
+      grepl("HEP_",rownames(tagseqRNAfeatureCounts)))
 
 #transcripts with counts >5 for Rousettus
-table(rowSums(tagseqRNAfeatureCounts[-1])>5,
-      !grepl("HEP_",tagseqRNAfeatureCounts$GeneID))
+table(rowSums(tagseqRNAfeatureCounts)>5,
+      !grepl("HEP_",rownames(tagseqRNAfeatureCounts)))
 
 
 #heatmap of 29 Hepatocystis transcripts >5
-pheatmap(log10(tagseqRNAfeatureCounts[-1][rowSums(tagseqRNAfeatureCounts[-1])>5 &
-         grepl("HEP_",tagseqRNAfeatureCounts$GeneID),]+1),
-         show_colnames = F, show_rownames = T)
+pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)>5 &
+         grepl("HEP_",rownames(tagseqRNAfeatureCounts)),]+1),
+         show_colnames = T, show_rownames = T)
 
 #getting the column sums for the hepatocystis transcripts
-colSums(tagseqRNAfeatureCounts[-1][
-  grepl("HEP_",tagseqRNAfeatureCounts$GeneID),])
+colSums(tagseqRNAfeatureCounts[
+  grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
 
 #adding a new column for the hepatocystis transcriptome parasitemia to the metadata file
-metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseqRNAfeatureCounts[-1][
-  grepl("HEP_",tagseqRNAfeatureCounts$GeneID),])
+metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseqRNAfeatureCounts[
+  grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
 
 
 #viewing column names for the feature counts table and metadata file
@@ -80,7 +104,7 @@ colnames(tagseqRNAfeatureCounts)
 colnames(metadata)
 
 #viewing the sample IDs in the metadata file
-(metadata$SampleID)
+(metadata$ID)
 
 #xy plot
 ggplot(metadata,aes(x = hepatocystis_transcriptome_parasitemia,y = Parasitemia_in_percent))
@@ -95,7 +119,6 @@ tapply(metadata$hepatocystis_transcriptome_parasitemia,
        metadata$Parasitemia_in_percent,mean)
 
 #plotting box plot
-
 ggplot(metadata, aes(y = hepatocystis_transcriptome_parasitemia, 
                      x = factor(Parasitemia_in_percent))) + 
   geom_boxplot() +
@@ -103,14 +126,14 @@ ggplot(metadata, aes(y = hepatocystis_transcriptome_parasitemia,
 
 
 #making a ggpairs plot
-ggpairs(metadata[-1]) #gives error because the 'Sample_ID_sequencing' column, 
+ggpairs(metadata) #gives error because the 'Sample_ID_sequencing' column, 
               #has more levels (unique values) than the default cardinality threshold allows
 
 #removing the column
 #ggpairs(metadata[-which(names(metadata) == 'Sample_ID_sequencing')])
 
 #alternatively increasing the cardinality threshold
-#ggpairs(metadata[-1], cardinality_threshold = 169) #this takes a lot of time plus outputs all columns even the unwanted
+#ggpairs(metadata, cardinality_threshold = 169) #this takes a lot of time plus outputs all columns even the unwanted
 
 #to make ggpairs plot with only desired columns
 selected_columns <- c("SampleID","Organ","Infectious_status_blood",

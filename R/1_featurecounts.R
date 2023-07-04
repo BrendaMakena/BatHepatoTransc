@@ -51,7 +51,7 @@ tagseqRNAfile_counts <- tagseqRNAcounts$counts
 tagseqRNAfile_data <- data.frame(GeneID = tagseqRNAgene_ids, tagseqRNAfile_counts)
 
 #Merging the new data frame with the feature_counts data frame
-if (nrow(tagseqRNAfeature_counts) == 0) {
+if (nrow(tagseqRNAfeatureCounts) == 0) {
   tagseqRNAfeatureCounts <- tagseqRNAfile_data
 } else {
   tagseqRNAfeatureCounts <- merge(tagseqRNAfeatureCounts, tagseqRNAfile_data, by = "GeneID", all = TRUE)
