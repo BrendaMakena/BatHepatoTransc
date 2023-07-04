@@ -9,6 +9,7 @@ library(ggplot2)
 library(GGally)
 library(dplyr)
 library(RColorBrewer)
+
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
@@ -22,16 +23,18 @@ if(readcount){
 # loading metadata file
 metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
 
+# viewing the column names
 colnames(metadata)
 metadata$SampleID
 
 colnames(tagseqRNAfeatureCounts)
 
+# adding ID column in metadata file 
 metadata$ID <- paste(metadata$SampleID, 
                      substring(metadata$Organ, 1,1),
                      sep = ".")
 
-
+# confirming ID column in metadata matches column names in feature counts file
 # all(metadata$ID %in% colnames(tagseqRNAfeatureCounts))
 # all(colnames(tagseqRNAfeatureCounts) %in% metadata$ID)
 
@@ -104,7 +107,7 @@ colnames(metadata)
 pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts), ]+1),
          show_colnames = T, show_rownames = T)
 
-pheatmap(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 5, ],
+pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 5, ]+1),
          show_rownames = TRUE,
          show_colnames = TRUE,
          color = brewer.pal(10, "RdYlBu"))
@@ -126,6 +129,10 @@ pheatmap(log10(processed_data[rowSums(processed_data) > 5, ] + 1),
          fontsize_col = 8,
          width = 20,  # Adjusts the width of the plot
          height = 10) # Adjusts the height of the plot
+
+pdf("plots/heatmap_all_greater_than_10_genes.pdf", 
+    width = 40,
+    height = 20)
          
 pheatmap(log10(processed_data[rowSums(processed_data) > 10, ] + 1),
          show_colnames = TRUE,
@@ -133,10 +140,9 @@ pheatmap(log10(processed_data[rowSums(processed_data) > 10, ] + 1),
          main = "heatmap of all genes",
          fontsize = 10,
          fontsize_row = 4,
-         fontsize_col = 6,
-         width = 40,  # Adjusts the width of the plot
-         height = 20) # Adjusts the height of the plot
-
+         fontsize_col = 6)
+         
+dev.off()
 
 ### checking if the technical replicates have similar gene counts
     
@@ -168,6 +174,72 @@ print(replicates_subset_df)
 print(means)
 
 print(median)
+
+
+Dist <- dist(log10(t(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ])+1))
+
+dim(Dist)
+str(Dist)
+
+pheatmap(Dist)
+
+pheatmap(as.matrix(Dist)[technical_replicate_cols,])
+
+rowSums(as.matrix(Dist)[technical_replicate_cols,])
+
+as.matrix(Dist)[technical_replicate_cols,"DMR970.S"]
+
+as.matrix(Dist)[,"DMR970.S"]
+
+mean(as.matrix(Dist)[,"DMR970.S"])
+
+min(as.matrix(Dist)[upper.tri(as.matrix(Dist))])
+
+as.matrix(Dist)["DMR970.S.1","DMR970.S"]
+
+as.matrix(Dist)["DMR992.L.1", "DMR992.L"]
+
+as.matrix(Dist)["DMR993.L.1", "DMR993.L"]
+
+fivenum(as.matrix(Dist)[upper.tri(as.matrix(Dist))])
+
+
+
+
+technical_replicate_cols
+plot(Dist)
+
+rowSums(tagseqRNAfeatureCounts)
+median(rowSums(tagseqRNAfeatureCounts))
+mean(rowSums(tagseqRNAfeatureCounts))
+
+
+ggplot(as.data.frame(rowSums(tagseqRNAfeatureCounts)+1), 
+       aes(x = rowSums(tagseqRNAfeatureCounts)))+
+  geom_histogram()+
+  scale_y_log10()+
+  scale_x_log10()
+
+
+dim(tagseqRNAfeatureCounts)
+
+max(rowSums(tagseqRNAfeatureCounts))
+sum(tagseqRNAfeatureCounts)
+
+tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)==max(rowSums(tagseqRNAfeatureCounts)),]
+
+
+# how deeply the samples are sequenced
+
+ggplot(as.data.frame(colSums(tagseqRNAfeatureCounts)), 
+       aes(x = colSums(tagseqRNAfeatureCounts)))+
+  geom_histogram()
+
+
+table(colSums(tagseqRNAfeatureCounts) <150000)
+
+colnames(tagseqRNAfeatureCounts)[colSums(tagseqRNAfeatureCounts) <150000]
+    #the two/3 samples to be excluded
 
 
 
