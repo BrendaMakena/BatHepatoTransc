@@ -9,6 +9,7 @@ library(ggplot2)
 library(GGally)
 library(dplyr)
 library(RColorBrewer)
+library(stats)
 
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
@@ -112,118 +113,117 @@ pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 5, ]+1),
          show_colnames = TRUE,
          color = brewer.pal(10, "RdYlBu"))
 
+#correlation between transcripts
 
-pdf("plots/heatmap_all_greater_than_10_genes.pdf", 
-    width = 40,
-    height = 20)
-         
-pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 10, ] + 1),
-         show_colnames = TRUE,
-         show_rownames = TRUE,
-         main = "heatmap of all genes",
-         fontsize = 10,
-         fontsize_row = 4,
-         fontsize_col = 6)
-         
+#calculating the Euclidean distance between transcripts
+euclidean_distance <- dist(t(tagseqRNAfeatureCounts), method = "euclidean")
+euclidean_distance
+
+#for all transcripts - log transformed
+all_transcripts_correlation<- dist(log10(t(tagseqRNAfeatureCounts)+1))
+all_transcripts_correlation
+dim(all_transcripts_correlation)
+str(all_transcripts_correlation)
+
+pheatmap(all_transcripts_correlation)
+
+#for transcripts with rowsums >500 log transformed
+transcripts_correlation<- dist(log10(t(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ])+1))
+transcripts_correlation
+
+dim(transcripts_correlation)
+str(transcripts_correlation)
+
+pheatmap(transcripts_correlation)
+
+transcripts_correlation_matrix <- as.matrix(1 - as.matrix(transcripts_correlation))
+transcripts_correlation_matrix
+dim(transcripts_correlation_matrix)  #gives the number of rows and columns in the matrix, representing the pairwise distances between transcripts
+str(transcripts_correlation_matrix)
+
+pheatmap(transcripts_correlation_matrix)
+
+
+#making the heatmap with metadata added for annotation and clustered by organ
+
+# Specifying the column order for clustering based on the 'Organ' column
+metadata_ordered <- metadata[order(metadata$Organ), , drop = FALSE]
+
+# Removing rows with NA values
+metadata_ordered <- metadata_ordered[complete.cases(metadata_ordered), ]
+#str(metadata_ordered)
+
+# Extracting unique organ names from metadata file 
+unique_organs <- unique(metadata_ordered$Organ)
+#print(unique_organs)
+
+# Generating a sample color palette
+#n_colors <- 5
+#color_palette <- viridis(n_colors)
+# Printing the color palette
+#print(color_palette)
+
+# Defining the number of unique organs
+n_colors <- length(unique_organs)
+
+# Defining the color palette
+color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
+#color_palette <- c("darkgreen", "darkblue")  # Custom colors for "Liver" and "Spleen"
+#color_palette <- c("spleen" = "darkgreen", "liver" = "darkblue")
+
+#print(color_palette)
+
+# Creating the heatmap
+pheatmap(transcripts_correlation_matrix, 
+         annotation_col = metadata_ordered,
+         cluster_rows = FALSE,
+         cluster_cols = TRUE,
+         color = list(heatmap = color_palette))
+
+  
+  # Creating the heatmap using the heatmap.2 function
+
+# Clustering the columns based on the "Organ" column in metadata_ordered
+organ_clusters <- hclust(dist(transcripts_correlation_matrix))
+column_order <- order.dendrogram(as.dendrogram(organ_clusters))
+
+# Create the heatmap using the reordered columns
+heatmap.2(as.matrix(transcripts_correlation_matrix),
+          Rowv = TRUE,
+          Colv = column_order,
+          col = color_palette,
+          main = "Transcripts Correlation",
+          xlab = "Samples",
+          ylab = "Transcripts",
+          margins = c(7, 10),
+          key = TRUE,
+          keysize = 1,
+          symkey = FALSE,
+          density.info = "none",
+          trace = "none",
+          cexRow = 0.8,
+          cexCol = 0.8,
+          labRow = row_names,
+          labCol = col_names,
+          srtCol = 45)
+
 dev.off()
 
-### checking if the technical replicates have similar gene counts
-    
-    # 1st identifying the technical replicate columns and their corresponding copies
 
-replicate_cols <- grep("\\.1$", colnames(tagseqRNAfeatureCounts), 
-                       value = TRUE)
+# calculating correlation coefficient between transcripts using 
+# Pearson's correlation coefficient
+pearsons_correlation_matrix <- cor(tagseqRNAfeatureCounts, 
+                                   method = "pearson" )
 
-copy_cols <- sub("\\.1$", "", replicate_cols)
+pearsons_correlation_matrix
+pheatmap(pearsons_correlation_matrix)
 
-      # 2nd subseting the dataframe to include only the technical replicate columns and their corresponding copies
+# calculating correlation coefficient between transcripts using 
+# spearman's correlation coefficient
+spearmans_correlation_matrix <- cor(tagseqRNAfeatureCounts, 
+                                    method = "spearman")
 
-replicates_subset_df <- tagseqRNAfeatureCounts[, c(replicate_cols, copy_cols)]
-
-    # Performing comparison and analysis on the replicates_subset_df
-
-    # You can calculate summary statistics, perform t-tests, correlations, or any other relevant analysis to determine similarity
-
-    # Example: Calculating mean values for each technical replicate and copy column
-
-means <- apply(replicates_subset_df, 2, mean)
-
-median <- apply(replicates_subset_df, 2, median)
-    
-# Printing the replicates_subset_df, means and medians for comparison
-
-print(replicates_subset_df)
-
-print(means)
-
-print(median)
-
-
-Dist <- dist(log10(t(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ])+1))
-
-dim(Dist)
-str(Dist)
-
-pheatmap(Dist)
-
-pheatmap(as.matrix(Dist)[technical_replicate_cols,])
-
-rowSums(as.matrix(Dist)[technical_replicate_cols,])
-
-as.matrix(Dist)[technical_replicate_cols,"DMR970.S"]
-
-as.matrix(Dist)[,"DMR970.S"]
-
-mean(as.matrix(Dist)[,"DMR970.S"])
-
-min(as.matrix(Dist)[upper.tri(as.matrix(Dist))])
-
-as.matrix(Dist)["DMR970.S.1","DMR970.S"]
-
-as.matrix(Dist)["DMR992.L.1", "DMR992.L"]
-
-as.matrix(Dist)["DMR993.L.1", "DMR993.L"]
-
-fivenum(as.matrix(Dist)[upper.tri(as.matrix(Dist))])
-
-
-
-
-technical_replicate_cols
-plot(Dist)
-
-rowSums(tagseqRNAfeatureCounts)
-median(rowSums(tagseqRNAfeatureCounts))
-mean(rowSums(tagseqRNAfeatureCounts))
-
-
-ggplot(as.data.frame(rowSums(tagseqRNAfeatureCounts)+1), 
-       aes(x = rowSums(tagseqRNAfeatureCounts)))+
-  geom_histogram()+
-  scale_y_log10()+
-  scale_x_log10()
-
-
-dim(tagseqRNAfeatureCounts)
-
-max(rowSums(tagseqRNAfeatureCounts))
-sum(tagseqRNAfeatureCounts)
-
-tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)==max(rowSums(tagseqRNAfeatureCounts)),]
-
-
-# how deeply the samples are sequenced
-
-ggplot(as.data.frame(colSums(tagseqRNAfeatureCounts)), 
-       aes(x = colSums(tagseqRNAfeatureCounts)))+
-  geom_histogram()
-
-
-table(colSums(tagseqRNAfeatureCounts) <150000)
-
-colnames(tagseqRNAfeatureCounts)[colSums(tagseqRNAfeatureCounts) <150000]
-    #the two/3 samples to be excluded
-
-
+spearmans_correlation_matrix
+pheatmap(spearmans_correlation_matrix)
 
 

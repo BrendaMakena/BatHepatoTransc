@@ -10,6 +10,7 @@ library(GGally)
 library(dplyr)
 library(RColorBrewer)
 
+
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
@@ -112,118 +113,120 @@ pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 5, ]+1),
          show_colnames = TRUE,
          color = brewer.pal(10, "RdYlBu"))
 
+   
+       #correlation between transcripts
 
-pdf("plots/heatmap_all_greater_than_10_genes.pdf", 
-    width = 40,
-    height = 20)
-         
-pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 10, ] + 1),
-         show_colnames = TRUE,
-         show_rownames = TRUE,
-         main = "heatmap of all genes",
-         fontsize = 10,
-         fontsize_row = 4,
-         fontsize_col = 6)
-         
+#creating a heatmap using the pheatmap function in R and annotating 
+#it using the metadata file while coloring by the "Organ" column
+
+# Extracting the relevant columns from the metadata file
+metadata_subset <- metadata[, c("ID", "Organ")]
+
+# Filtering the features in the feature counts file 
+filtered_counts <- tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ]
+
+# Calculating the correlation matrix
+correlation_matrix <- cor(log2(filtered_counts + 1))
+
+# Defining the color palette for the "Organ" column
+#color_palette <- c("spleen" = "darkgreen", "liver" = "darkblue")
+#color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
+
+
+color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
+pheatmap(correlation_matrix,
+         annotation_col = metadata_subset,
+         cluster_rows = FALSE,
+         cluster_cols = TRUE,
+         breaks = seq(min(correlation_matrix), max(correlation_matrix), length.out = length(color_palette) + 1),
+         col = color_palette)
+
+
+# Generating a smooth color palette
+#smooth_color_palette <- colorRampPalette(color_palette)(100)
+
+
+# Closing any existing plotting devices
 dev.off()
 
-### checking if the technical replicates have similar gene counts
-    
-    # 1st identifying the technical replicate columns and their corresponding copies
+# Reset the graphics system
+graphics.off()
 
-replicate_cols <- grep("\\.1$", colnames(tagseqRNAfeatureCounts), 
-                       value = TRUE)
+# Create a new plotting device
+dev.new(width = 10, height = 10)
 
-copy_cols <- sub("\\.1$", "", replicate_cols)
+# Create a color palette for the organs
+organ_palette <- c("Spleen" = "blue", "Liver" = "green")
 
-      # 2nd subseting the dataframe to include only the technical replicate columns and their corresponding copies
+# Generate the heatmap with color by organ
+# Close any existing plotting devices
+dev.off()
 
-replicates_subset_df <- tagseqRNAfeatureCounts[, c(replicate_cols, copy_cols)]
+# Reset the graphics system
+graphics.off()
 
-    # Performing comparison and analysis on the replicates_subset_df
+# Create a new plotting device
+dev.new(width = 10, height = 10)
 
-    # You can calculate summary statistics, perform t-tests, correlations, or any other relevant analysis to determine similarity
+# saving the plot to a file
+pdf("plots/heatmap_with_metadata_annotations_coloured_by_organ.pdf")
+png("plots/heatmap_with_metadata_annotations_coloured_by_organ.png")
 
-    # Example: Calculating mean values for each technical replicate and copy column
+# Generate the heatmap
+heatmap.2(correlation_matrix,
+          ColSideColors = color_palette[as.factor(metadata_subset$Organ)],
+          main = "Transcripts Correlation",
+          xlab = "Samples",
+          ylab = "Transcripts",
+          col = smooth_color_palette,
+          key = TRUE,
+          keysize = 1,
+          symkey = FALSE,
+          density.info = "none",
+          trace = "none",
+          cexRow = 0.8,
+          cexCol = 0.8)
 
-means <- apply(replicates_subset_df, 2, mean)
-
-median <- apply(replicates_subset_df, 2, median)
-    
-# Printing the replicates_subset_df, means and medians for comparison
-
-print(replicates_subset_df)
-
-print(means)
-
-print(median)
-
-
-Dist <- dist(log10(t(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ])+1))
-
-dim(Dist)
-str(Dist)
-
-pheatmap(Dist)
-
-pheatmap(as.matrix(Dist)[technical_replicate_cols,])
-
-rowSums(as.matrix(Dist)[technical_replicate_cols,])
-
-as.matrix(Dist)[technical_replicate_cols,"DMR970.S"]
-
-as.matrix(Dist)[,"DMR970.S"]
-
-mean(as.matrix(Dist)[,"DMR970.S"])
-
-min(as.matrix(Dist)[upper.tri(as.matrix(Dist))])
-
-as.matrix(Dist)["DMR970.S.1","DMR970.S"]
-
-as.matrix(Dist)["DMR992.L.1", "DMR992.L"]
-
-as.matrix(Dist)["DMR993.L.1", "DMR993.L"]
-
-fivenum(as.matrix(Dist)[upper.tri(as.matrix(Dist))])
+dev.off()
 
 
+      #### ggplot for correlation between the transcripts #### 
 
 
-technical_replicate_cols
-plot(Dist)
+# Selecting the columns for x-axis, y-axis, and color
+x_column <- "Parasitemia_in_percent"
+y_column <- "hepatocystis_transcriptome_parasitemia"
+color_column <- "Organ" 
 
-rowSums(tagseqRNAfeatureCounts)
-median(rowSums(tagseqRNAfeatureCounts))
-mean(rowSums(tagseqRNAfeatureCounts))
+# Creating the ggplot as a scatter plot
+pdf("plots/scatter plot of transcripts correlations coloured by organ.pdf")
+png("plots/scatter plot of transcripts correlations coloured by organ.png")
 
+ggplot(metadata, 
+       aes_string(x = x_column, 
+                  y = y_column, 
+                  color = color_column)) +
+  geom_point() +
+  labs(title = "Scatter Plot of transcripts correlations coloured by organ", 
+       x = x_column, 
+       y = y_column)
 
-ggplot(as.data.frame(rowSums(tagseqRNAfeatureCounts)+1), 
-       aes(x = rowSums(tagseqRNAfeatureCounts)))+
-  geom_histogram()+
-  scale_y_log10()+
-  scale_x_log10()
+dev.off()
 
+# Creating the ggplot as a box plot
+pdf("plots/Boxplot of transcripts correlations coloured by organ.pdf")
+png("plots/Boxplot of transcripts correlations coloured by organ.png")
 
-dim(tagseqRNAfeatureCounts)
+ggplot(metadata, 
+       aes_string(x = x_column, 
+                  y = y_column, 
+                  fill = color_column)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of transcripts correlations coloured by organ", 
+       x = x_column, 
+       y = y_column)
 
-max(rowSums(tagseqRNAfeatureCounts))
-sum(tagseqRNAfeatureCounts)
-
-tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)==max(rowSums(tagseqRNAfeatureCounts)),]
-
-
-# how deeply the samples are sequenced
-
-ggplot(as.data.frame(colSums(tagseqRNAfeatureCounts)), 
-       aes(x = colSums(tagseqRNAfeatureCounts)))+
-  geom_histogram()
-
-
-table(colSums(tagseqRNAfeatureCounts) <150000)
-
-colnames(tagseqRNAfeatureCounts)[colSums(tagseqRNAfeatureCounts) <150000]
-    #the two/3 samples to be excluded
-
+dev.off()
 
 
 
