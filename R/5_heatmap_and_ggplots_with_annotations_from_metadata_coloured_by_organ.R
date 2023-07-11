@@ -9,7 +9,8 @@ library(ggplot2)
 library(GGally)
 library(dplyr)
 library(RColorBrewer)
-
+library(MASS)
+library(tidyverse)
 
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
@@ -200,22 +201,24 @@ color_column <- "Organ"
 
 # Creating the ggplot as a scatter plot
 pdf("plots/scatter plot of transcripts correlations coloured by organ.pdf")
-png("plots/scatter plot of transcripts correlations coloured by organ.png")
+#png("plots/scatter plot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
-       aes_string(x = x_column, 
-                  y = y_column, 
-                  color = color_column)) +
+       aes(x = Parasitemia_in_percent, 
+                  y = hepatocystis_transcriptome_parasitemia, 
+                  color = Organ)) +
   geom_point() +
+  scale_y_log10()+
+  geom_smooth(method = "lm") +
   labs(title = "Scatter Plot of transcripts correlations coloured by organ", 
-       x = x_column, 
-       y = y_column)
+       x = "blood parasitemia (% infected erythrocytes)", 
+       y = "transcriptome infection estimate (#reads)")
 
 dev.off()
 
 # Creating the ggplot as a box plot
 pdf("plots/Boxplot of transcripts correlations coloured by organ.pdf")
-png("plots/Boxplot of transcripts correlations coloured by organ.png")
+#png("plots/Boxplot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes_string(x = x_column, 
@@ -228,5 +231,94 @@ ggplot(metadata,
 
 dev.off()
 
+model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~ Parasitemia_in_percent * Organ,
+       metadata)
+
+
+summary(model_parasitemia)
+
+
+# Creating the ggplot as a scatter plot
+pdf("plots/boxplot_of_parasitemia_infected_erythrocytes_coloured_by_organ.pdf")
+#png("plots/scatter plot of transcripts correlations coloured by organ.png")
+
+ggplot(metadata, 
+       aes(x = Infectious_status_blood, 
+           y = hepatocystis_transcriptome_parasitemia, 
+           color = Organ)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.25))+
+  scale_y_log10()+
+  labs(x = "blood parasitemia detected", 
+       y = "transcriptome infection estimate (#reads)")
+
+dev.off()
+
+# Creating the ggplot as a scatter plot
+pdf("plots/scatter_plot_of_organ_paired_parasitemia.pdf")
+#png("plots/scatter plot of transcripts correlations coloured by organ.png")
+
+ggplot(metadata, 
+       aes(x = Organ, 
+           y = hepatocystis_transcriptome_parasitemia, 
+           color = Infectious_status_blood)) +
+  geom_point()+
+  geom_line(aes(group = SampleID))+
+  scale_y_log10()+
+  labs(x = "organ", 
+       y = "transcriptome infection estimate (#reads)")
+
+dev.off()
+
+# Creating the ggplot as a scatter plot
+pdf("plots/scatter_plot_of_blood_parasitemia_count.pdf")
+#png("plots/scatter plot of transcripts correlations coloured by organ.png")
+
+ggplot(metadata, 
+       aes(x = Parasitemia_in_percent, 
+           y = hepatocystis_transcriptome_parasitemia, 
+           color = Organ)) +
+  geom_point()+
+  geom_line(aes(group = SampleID))+
+  scale_y_log10()+
+  labs(x = "blood parasitemia (% infected erythrocytes)", 
+       y = "transcriptome infection estimate (#reads)")
+
+dev.off()
+
+
+# Creating the ggplot as a scatter plot
+pdf("plots/boxplot_of_transcriptome_parasitemia_in_liver_samples.pdf")
+#png("plots/scatter plot of transcripts correlations coloured by organ.png")
+
+ggplot(metadata, 
+       aes(x = Infectious_status_blood, 
+           y = hepatocystis_transcriptome_parasitemia, 
+           color = Organ)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitterdodge(jitter.width = 0.25))+
+  scale_y_log10()+
+  labs(x = "blood parasitemia detected", 
+       y = "transcriptome infection estimate (#reads)")
+
+dev.off()
+
+pdf("plots/scatter_plot_for.pdf")
+
+as_tibble(metadata) %>% 
+  dplyr::select(hepatocystis_transcriptome_parasitemia,
+                Organ, ID, Infectious_status_blood) %>%
+  pivot_wider(values_from = c(hepatocystis_transcriptome_parasitemia),
+              names_from = Organ,
+              values_fill = NA) %>% 
+  ggplot(aes(Liver, Spleen, color = Infectious_status_blood)) +
+  geom_point() +
+  scale_y_log10() +
+  scale_x_log10()
+
+dev.off()  
+
+
+colnames(metadata)
 
 
