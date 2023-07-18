@@ -227,3 +227,85 @@ spearmans_correlation_matrix
 pheatmap(spearmans_correlation_matrix)
 
 
+      #### correlation heatmaps coloured by organ ####  
+
+# Extracting the relevant columns from the metadata file
+metadata_subset <- metadata[, c("ID", "Organ")]
+
+# Filtering the features in the feature counts file 
+filtered_counts <- tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ]
+
+# Calculating the correlation matrix
+correlation_matrix <- cor(log2(filtered_counts + 1))
+
+# Defining the color palette for the "Organ" column
+#color_palette <- c("spleen" = "darkgreen", "liver" = "darkblue")
+#color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
+
+
+color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
+pheatmap(correlation_matrix,
+         annotation_col = metadata_subset,
+         cluster_rows = FALSE,
+         cluster_cols = TRUE,
+         breaks = seq(min(correlation_matrix), max(correlation_matrix), length.out = length(color_palette) + 1),
+         col = color_palette)
+
+pheatmap(cor(log2(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ] +1)),
+         annotation_col = metadata[, c("ID", "Organ")],
+         cluster_rows = FALSE,
+         cluster_cols = TRUE,
+         breaks = seq(min(cor(log2(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ] +1))), 
+                      max(cor(log2(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ] +1))), 
+                      length.out = length(c("spleen" = "darkgreen", "liver" = "darkblue") + 1),
+                      col = c("spleen" = "darkgreen", "liver" = "darkblue")))
+
+# Generating a smooth color palette
+#smooth_color_palette <- colorRampPalette(color_palette)(100)
+
+
+# Closing any existing plotting devices
+dev.off()
+
+# Reset the graphics system
+graphics.off()
+
+# Create a new plotting device
+dev.new(width = 10, height = 10)
+
+# Create a color palette for the organs
+organ_palette <- c("Spleen" = "blue", "Liver" = "green")
+
+# Generate the heatmap with color by organ
+# Close any existing plotting devices
+dev.off()
+
+# Reset the graphics system
+graphics.off()
+
+# Create a new plotting device
+dev.new(width = 10, height = 10)
+
+# saving the plot to a file
+pdf("plots/heatmap_with_metadata_annotations_coloured_by_organ.pdf")
+png("plots/heatmap_with_metadata_annotations_coloured_by_organ.png")
+
+# Generate the heatmap
+heatmap.2(correlation_matrix,
+          ColSideColors = color_palette[as.factor(metadata_subset$Organ)],
+          main = "Transcripts Correlation",
+          xlab = "Samples",
+          ylab = "Transcripts",
+          col = smooth_color_palette,
+          key = TRUE,
+          keysize = 1,
+          symkey = FALSE,
+          density.info = "none",
+          trace = "none",
+          cexRow = 0.8,
+          cexCol = 0.8)
+
+dev.off()
+
+
+

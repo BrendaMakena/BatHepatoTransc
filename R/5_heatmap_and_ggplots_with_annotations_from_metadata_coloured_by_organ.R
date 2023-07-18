@@ -12,6 +12,7 @@ library(RColorBrewer)
 library(MASS)
 library(tidyverse)
 
+
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
@@ -63,6 +64,7 @@ cbind(colnames(tagseqRNAfeatureCounts) == metadata$ID,
 all(colnames(tagseqRNAfeatureCounts) == metadata$ID)
 
 
+
 # getting the hepatocystis transcripts
 # tagseqRNAfeatureCounts %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))
 
@@ -86,10 +88,13 @@ table(rowSums(tagseqRNAfeatureCounts)>5,
 
 
 # heatmap of 29 Hepatocystis transcripts >5
+pdf("plots/heatmap_of_29_Hepatocystis_transcripts_with_greater_than_5_counts.pdf")
+
 pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)>5 &
                                         grepl("HEP_",rownames(tagseqRNAfeatureCounts)),]+1),
          show_colnames = T, show_rownames = T)
 
+dev.off()
 
 # getting the column sums for the hepatocystis transcripts
 colSums(tagseqRNAfeatureCounts[
@@ -100,95 +105,46 @@ metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseqRNAfeatureCount
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
 
 
-# viewing column names for the feature counts table and metadata file
-colnames(tagseqRNAfeatureCounts) 
-colnames(metadata)
-
 
 # heatmap of all transcripts
-pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts), ]+1),
-         show_colnames = T, show_rownames = T)
+pdf("plots/heatmap_of_all_transcripts.pdf")
+pheatmap(log10(tagseqRNAfeatureCounts +1),
+         show_colnames = TRUE,
+         show_rownames = TRUE)
 
+dev.off()
+
+# heatmap of all transcripts with greater than 5 counts
+pdf("plots/heatmap_of_all_transcripts_with_greater_than_5_counts.pdf")
 pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 5, ]+1),
          show_rownames = TRUE,
          show_colnames = TRUE,
          color = brewer.pal(10, "RdYlBu"))
 
-   
-       #correlation between transcripts
+dev.off()
+  
+
+ 
+       #### correlation between transcripts ####
 
 #creating a heatmap using the pheatmap function in R and annotating 
 #it using the metadata file while coloring by the "Organ" column
 
-# Extracting the relevant columns from the metadata file
-metadata_subset <- metadata[, c("ID", "Organ")]
+pdf("plots/heatmap_of_all_transcripts_with_greater_than_500_counts_coloured_by_organ.pdf")
 
-# Filtering the features in the feature counts file 
-filtered_counts <- tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ]
-
-# Calculating the correlation matrix
-correlation_matrix <- cor(log2(filtered_counts + 1))
-
-# Defining the color palette for the "Organ" column
-#color_palette <- c("spleen" = "darkgreen", "liver" = "darkblue")
-#color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
-
-
-color_palette <- c("#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF")
-pheatmap(correlation_matrix,
-         annotation_col = metadata_subset,
-         cluster_rows = FALSE,
-         cluster_cols = TRUE,
-         breaks = seq(min(correlation_matrix), max(correlation_matrix), length.out = length(color_palette) + 1),
-         col = color_palette)
-
-
-# Generating a smooth color palette
-#smooth_color_palette <- colorRampPalette(color_palette)(100)
-
-
-# Closing any existing plotting devices
-dev.off()
-
-# Reset the graphics system
-graphics.off()
-
-# Create a new plotting device
-dev.new(width = 10, height = 10)
-
-# Create a color palette for the organs
-organ_palette <- c("Spleen" = "blue", "Liver" = "green")
-
-# Generate the heatmap with color by organ
-# Close any existing plotting devices
-dev.off()
-
-# Reset the graphics system
-graphics.off()
-
-# Create a new plotting device
-dev.new(width = 10, height = 10)
-
-# saving the plot to a file
-pdf("plots/heatmap_with_metadata_annotations_coloured_by_organ.pdf")
-png("plots/heatmap_with_metadata_annotations_coloured_by_organ.png")
-
-# Generate the heatmap
-heatmap.2(correlation_matrix,
-          ColSideColors = color_palette[as.factor(metadata_subset$Organ)],
-          main = "Transcripts Correlation",
-          xlab = "Samples",
-          ylab = "Transcripts",
-          col = smooth_color_palette,
-          key = TRUE,
-          keysize = 1,
-          symkey = FALSE,
-          density.info = "none",
-          trace = "none",
-          cexRow = 0.8,
-          cexCol = 0.8)
+pheatmap(
+  log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ] + 1),
+  show_colnames = TRUE,
+  show_rownames = TRUE,
+  annotation_col = data.frame(Organ = metadata$Organ),
+  annotation_colors = list(Organ = c("spleen" = "red", "liver" = "blue")),
+  scale = "none",
+  fontsize = 8,
+  fontsize_row = 8,
+  fontsize_col = 8)
 
 dev.off()
+
 
 
       #### ggplot for correlation between the transcripts #### 
@@ -200,7 +156,7 @@ y_column <- "hepatocystis_transcriptome_parasitemia"
 color_column <- "Organ" 
 
 # Creating the ggplot as a scatter plot
-pdf("plots/scatter plot of transcripts correlations coloured by organ.pdf")
+pdf("plots/scatter_plot_of_transcripts_correlations_coloured_by_organ.pdf")
 #png("plots/scatter plot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
@@ -217,17 +173,17 @@ ggplot(metadata,
 dev.off()
 
 # Creating the ggplot as a box plot
-pdf("plots/Boxplot of transcripts correlations coloured by organ.pdf")
+pdf("plots/Boxplot_of_transcripts_correlations_coloured_by_organ.pdf")
 #png("plots/Boxplot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
-       aes_string(x = x_column, 
-                  y = y_column, 
-                  fill = color_column)) +
+       aes_string(x = Parasitemia_in_percent, 
+                  y = hepatocystis_transcriptome_parasitemia, 
+                  fill = Organ)) +
   geom_boxplot() +
   labs(title = "Boxplot of transcripts correlations coloured by organ", 
-       x = x_column, 
-       y = y_column)
+       x = Parasitemia_in_percent, 
+       y = hepatocystis_transcriptome_parasitemia)
 
 dev.off()
 
@@ -240,7 +196,7 @@ summary(model_parasitemia)
 
 # Creating the ggplot as a scatter plot
 pdf("plots/boxplot_of_parasitemia_infected_erythrocytes_coloured_by_organ.pdf")
-#png("plots/scatter plot of transcripts correlations coloured by organ.png")
+#png("plots/boxplot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes(x = Infectious_status_blood, 
@@ -250,7 +206,8 @@ ggplot(metadata,
   geom_point(position = position_jitterdodge(jitter.width = 0.25))+
   scale_y_log10()+
   labs(x = "blood parasitemia detected", 
-       y = "transcriptome infection estimate (#reads)")
+       y = "transcriptome infection estimate (#reads)",
+       title = "Transcripts correlations coloured by organ")
 
 dev.off()
 
@@ -266,13 +223,13 @@ ggplot(metadata,
   geom_line(aes(group = SampleID))+
   scale_y_log10()+
   labs(x = "organ", 
-       y = "transcriptome infection estimate (#reads)")
+       y = "transcriptome infection estimate (#reads)",
+       title = "Transcripts correlations coloured by organ")
 
 dev.off()
 
 # Creating the ggplot as a scatter plot
 pdf("plots/scatter_plot_of_blood_parasitemia_count.pdf")
-#png("plots/scatter plot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes(x = Parasitemia_in_percent, 
@@ -282,14 +239,14 @@ ggplot(metadata,
   geom_line(aes(group = SampleID))+
   scale_y_log10()+
   labs(x = "blood parasitemia (% infected erythrocytes)", 
-       y = "transcriptome infection estimate (#reads)")
+       y = "transcriptome infection estimate (#reads)",
+       title = "Blood parasitemia count")
 
 dev.off()
 
 
 # Creating the ggplot as a scatter plot
-pdf("plots/boxplot_of_transcriptome_parasitemia_in_liver_samples.pdf")
-#png("plots/scatter plot of transcripts correlations coloured by organ.png")
+pdf("plots/boxplot_of_transcriptome_parasitemia_in_liver_vs_spleen_samples.pdf")
 
 ggplot(metadata, 
        aes(x = Infectious_status_blood, 
@@ -299,26 +256,34 @@ ggplot(metadata,
   geom_point(position = position_jitterdodge(jitter.width = 0.25))+
   scale_y_log10()+
   labs(x = "blood parasitemia detected", 
-       y = "transcriptome infection estimate (#reads)")
+       y = "transcriptome infection estimate (#reads)",
+       title = "Transcriptome parasitemia in liver vs spleen samples")
 
 dev.off()
 
-pdf("plots/scatter_plot_for.pdf")
 
+
+pdf("plots/scatter_plot_for_spleen_and_liver_infectious_status.pdf")
 as_tibble(metadata) %>% 
+  filter(!SampleID %in% c("DMR970", "DMR992", "DMR993")) %>% 
   dplyr::select(hepatocystis_transcriptome_parasitemia,
-                Organ, ID, Infectious_status_blood) %>%
+                Organ, SampleID, Infectious_status_blood) %>%
   pivot_wider(values_from = c(hepatocystis_transcriptome_parasitemia),
               names_from = Organ,
               values_fill = NA) %>% 
+  filter(!is.na(Liver) & !is.na(Spleen)) %>%
   ggplot(aes(Liver, Spleen, color = Infectious_status_blood)) +
   geom_point() +
   scale_y_log10() +
-  scale_x_log10()
+  scale_x_log10()+ 
+  labs(title = "Liver vs Spleen Parasitemia")
 
-dev.off()  
+
+dev.off()
 
 
-colnames(metadata)
+
+
+
 
 
