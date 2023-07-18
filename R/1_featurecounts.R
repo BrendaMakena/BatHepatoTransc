@@ -78,6 +78,8 @@ names(tagseqRNAfeatureCounts) = gsub(pattern = "^.*D",
                                      replacement = "D", 
                                      x = names(tagseqRNAfeatureCounts))
 
+#removing transcripts with 0 counts
+tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)>0,]
 
 # Saving the feature counts to a file 
 saveRDS(tagseqRNAfeatureCounts, "intermediateData/countTable.RDS")
