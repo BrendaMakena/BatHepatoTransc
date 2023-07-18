@@ -149,15 +149,8 @@ dev.off()
 
       #### ggplot for correlation between the transcripts #### 
 
-
-# Selecting the columns for x-axis, y-axis, and color
-x_column <- "Parasitemia_in_percent"
-y_column <- "hepatocystis_transcriptome_parasitemia"
-color_column <- "Organ" 
-
 # Creating the ggplot as a scatter plot
 pdf("plots/scatter_plot_of_transcripts_correlations_coloured_by_organ.pdf")
-#png("plots/scatter plot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes(x = Parasitemia_in_percent, 
@@ -168,13 +161,13 @@ ggplot(metadata,
   geom_smooth(method = "lm") +
   labs(title = "Scatter Plot of transcripts correlations coloured by organ", 
        x = "blood parasitemia (% infected erythrocytes)", 
-       y = "transcriptome infection estimate (#reads)")
+       y = "transcriptome infection estimate (#reads)") +
+  theme_bw()
 
 dev.off()
 
 # Creating the ggplot as a box plot
 pdf("plots/Boxplot_of_transcripts_correlations_coloured_by_organ.pdf")
-#png("plots/Boxplot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes_string(x = Parasitemia_in_percent, 
@@ -183,9 +176,11 @@ ggplot(metadata,
   geom_boxplot() +
   labs(title = "Boxplot of transcripts correlations coloured by organ", 
        x = Parasitemia_in_percent, 
-       y = hepatocystis_transcriptome_parasitemia)
+       y = hepatocystis_transcriptome_parasitemia) +
+  theme_bw()
 
 dev.off()
+
 
 model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~ Parasitemia_in_percent * Organ,
        metadata)
@@ -196,7 +191,6 @@ summary(model_parasitemia)
 
 # Creating the ggplot as a scatter plot
 pdf("plots/boxplot_of_parasitemia_infected_erythrocytes_coloured_by_organ.pdf")
-#png("plots/boxplot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes(x = Infectious_status_blood, 
@@ -207,13 +201,14 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "blood parasitemia detected", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Transcripts correlations coloured by organ")
+       title = "Transcripts correlations coloured by organ") +
+  theme_bw()
 
 dev.off()
 
+
 # Creating the ggplot as a scatter plot
 pdf("plots/scatter_plot_of_organ_paired_parasitemia.pdf")
-#png("plots/scatter plot of transcripts correlations coloured by organ.png")
 
 ggplot(metadata, 
        aes(x = Organ, 
@@ -224,7 +219,8 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "organ", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Transcripts correlations coloured by organ")
+       title = "Transcripts correlations coloured by organ")+
+  theme_bw()
 
 dev.off()
 
@@ -240,7 +236,8 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "blood parasitemia (% infected erythrocytes)", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Blood parasitemia count")
+       title = "Blood parasitemia count") +
+  theme_bw()
 
 dev.off()
 
@@ -257,7 +254,8 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "blood parasitemia detected", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Transcriptome parasitemia in liver vs spleen samples")
+       title = "Transcriptome parasitemia in liver vs spleen samples") +
+  theme_bw()
 
 dev.off()
 
@@ -276,7 +274,8 @@ as_tibble(metadata) %>%
   geom_point() +
   scale_y_log10() +
   scale_x_log10()+ 
-  labs(title = "Liver vs Spleen Parasitemia")
+  labs(title = "Liver vs Spleen Parasitemia") +
+  theme_bw()
 
 
 dev.off()
