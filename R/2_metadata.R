@@ -27,16 +27,23 @@ if(readcount){
 #loading metadata file
 metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
 
+
 metadata$ID <- paste(metadata$SampleID, 
                      substring(metadata$Organ, 1,1),
       sep = ".")
 
 # we have technical replicates for some samples
-# colnames in the count data have been made unique by R 
-# by appending ".1" to them
+# colnames in the count data have been merged by summing
+# to remove metadata replicate samples
 
 metadata$ID <- make.unique(metadata$ID)
 
+# filtering out rows containing technical replicates
+metadata <- metadata %>%
+  filter(!grepl("\\.\\d+$", ID))
+
+
+# ordering the metadata according to counts file
 metadata <- metadata[order(metadata$ID),]
 
 tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[,order(colnames(tagseqRNAfeatureCounts))]
@@ -62,10 +69,6 @@ metadata$hepatocystis_transcriptome_parasitemia_5 <- colSums(tagseqRNAfeatureCou
 
 
 #adding columns for thresholds below upper quartile for hepatocystis transcriptome
-metadata$hepatocystis_transcriptome_parasitemia_5 <- colSums(tagseqRNAfeatureCounts[
-  grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
-    rowSums(tagseqRNAfeatureCounts) ,])
-
 uQ <- rowSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)),]) %>%
   quantile(0.75)
@@ -75,5 +78,23 @@ uQ <- rowSums(tagseqRNAfeatureCounts[
 metadata$hepatocystis_transcriptome_parasitemia_uQ <- colSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
     rowSums(tagseqRNAfeatureCounts)<uQ ,])
+
+rowSums(tagseqRNAfeatureCounts[grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
+
+
+
+
+hepatocystis_29_transcripts <- tagseqRNAfeatureCounts %>% 
+  filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
+         rowSums(tagseqRNAfeatureCounts)>5)
+
+rowSums(tagseqRNAfeatureCounts %>% 
+          filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
+                 rowSums(tagseqRNAfeatureCounts)>5))
+
+write.csv(hepatocystis_29_transcripts, file = "hepatocystis_29_transcripts.csv")
+
+
+
 
 

@@ -21,73 +21,15 @@ if(readcount){
 }
 
 # loading metadata file
-metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
-
-# viewing the column names
-colnames(metadata)
-metadata$SampleID
-
-colnames(tagseqRNAfeatureCounts)
-
-# adding ID column in metadata file 
-metadata$ID <- paste(metadata$SampleID, 
-                     substring(metadata$Organ, 1,1),
-                     sep = ".")
-
-# confirming ID column in metadata matches column names in feature counts file
-# all(metadata$ID %in% colnames(tagseqRNAfeatureCounts))
-# all(colnames(tagseqRNAfeatureCounts) %in% metadata$ID)
-
-cbind(colnames(tagseqRNAfeatureCounts) == metadata$ID,
-      colnames(tagseqRNAfeatureCounts), metadata$ID)
-
-all(colnames(tagseqRNAfeatureCounts) == metadata$ID)
-
-# we have technical replicates for some samples
-# colnames in the count data have been made unique by R 
-# by appending ".1" to them
-
-metadata$ID <- make.unique(metadata$ID)
-
-metadata <- metadata[order(metadata$ID),]
-
-tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[,order(colnames(tagseqRNAfeatureCounts))]
-
-table(grepl("\\.1",metadata$ID))
-
-cbind(colnames(tagseqRNAfeatureCounts) == metadata$ID,
-      colnames(tagseqRNAfeatureCounts), metadata$ID)
-
-all(colnames(tagseqRNAfeatureCounts) == metadata$ID)
-
-
-# getting the hepatocystis transcripts
-# tagseqRNAfeatureCounts %>% filter(grepl("HEP_",GeneID,ignore.case = TRUE))
-
-# getting the Rousettus transcripts
-# tagseqRNAfeatureCounts %>% filter(!grepl("HEP_",GeneID,ignore.case = TRUE))
-
-
-# getting the rowsums for the genes counts table
-table(rowSums(tagseqRNAfeatureCounts))
-
-# transcripts with counts >5 for both Hepatocystis and Rousettus
-table(rowSums(tagseqRNAfeatureCounts)>5)
-
-# transcripts with counts >5 for Hepatocystis
-table(rowSums(tagseqRNAfeatureCounts)>5,
-      grepl("HEP_",rownames(tagseqRNAfeatureCounts)))
-
-# transcripts with counts >5 for Rousettus
-table(rowSums(tagseqRNAfeatureCounts)>5,
-      !grepl("HEP_",rownames(tagseqRNAfeatureCounts)))
+source("R/2_metadata.R")
 
 
 # heatmap of 29 Hepatocystis transcripts >5
+pdf("plots/heatmap_of_29_Hepatocystis_transcripts_with_greater_than_5_counts.pdf")
 pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)>5 &
                                         grepl("HEP_",rownames(tagseqRNAfeatureCounts)),]+1),
          show_colnames = T, show_rownames = T)
-
+dev.off()
 
 # getting the column sums for the hepatocystis transcripts
 colSums(tagseqRNAfeatureCounts[

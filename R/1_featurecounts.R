@@ -5,7 +5,10 @@
 #first install and load the package Rsubread which has featuresCount as a built in package
 #BiocManager::install("Rsubread")
 library("Rsubread")
-featureCounts #to see the usage
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(tibble)
 
 #Setting the path to the directory containing the BAM files from STAR mapping
 bamdirectory <- "/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/BAMfiles"
@@ -13,13 +16,6 @@ dir()
 
 #Creating a list of BAM file names in the directory
 bamFiles <- list.files(bamdirectory, pattern = ".bam$", full.names = TRUE)
-
-#Setting the path to the merged GTF annotation files
-#Hepatocystis gtf file download: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/902/459/845/GCA_902459845.2_HEP1/ 
-#rouseatus gtf file download: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/014/176/215/GCF_014176215.1_mRouAeg1.p/GCF_014176215.1_mRouAeg1.p_genomic.gtf.gz 
-
-#merged_gtf <- "/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/RousettusHepatocystis_merged.gtf"
-#merged_gtf
 
 
 #Perform feature counts to generate feature counts for each BAM file, specifying merged GTF
@@ -39,7 +35,7 @@ for (file in bamFiles) {
   #This file name is then used as the column name when adding the counts to the feature_counts data frame.
   
   # Running featureCounts for each file
- tagseqRNAcounts <- featureCounts(files = file, nthreads = 40, 
+ tagseqRNAcounts <- featureCounts(files = file, nthreads = 8, 
                                annot.ext = "/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/RousettusHepatocystis_merged.gtf", 
                 isGTFAnnotationFile = TRUE, GTF.featureType = "exon", GTF.attrType = "gene_id")
 
@@ -80,6 +76,27 @@ names(tagseqRNAfeatureCounts) = gsub(pattern = "^.*D",
 
 #removing transcripts with 0 counts
 tagseqRNAfeatureCounts <- tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts)>0,]
+
+# removing replicates by summing them up
+
+# converting the matrix to a data frame and transposing the data
+tagseqRNAfeatureCounts <- as.data.frame(t(tagseqRNAfeatureCounts))
+
+# making row names unique by adding a suffix to duplicate sample IDs
+rownames(tagseqRNAfeatureCounts) <- make.unique(rownames(tagseqRNAfeatureCounts))
+
+# extracting common sample IDs to merge technical replicates
+merged_counts_df <- tagseqRNAfeatureCounts %>%
+  rownames_to_column(var = "gene_id") %>%
+  mutate(sample_id = sub("\\.\\d+$", "", gene_id)) %>%
+  dplyr::select(-gene_id) %>%
+  group_by(sample_id) %>%
+  summarise(across(everything(), sum, na.rm = TRUE))
+
+# transposing the data frame to get back the original format
+tagseqRNAfeatureCounts <- as.data.frame(t(merged_counts_df[,-1]))
+colnames(tagseqRNAfeatureCounts) <- merged_counts_df$sample_id
+
 
 # Saving the feature counts to a file 
 saveRDS(tagseqRNAfeatureCounts, "intermediateData/countTable.RDS")
