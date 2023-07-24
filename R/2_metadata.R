@@ -1,47 +1,41 @@
-#Plotting with predictor variables eg; age and sex
-#pairwise correlation between the two variables using eg ggpairs or pairs
-#to determine best mapping of Hepatocystis transcripts:
+# loading the metadata file and modifying it to remove replicates and 
+# add new columns for hepatocystis transcriptome intensities
 
-#1st plotting heatmap of Hepatocystis transcripts in the 169 samples
-#using pheatmap
-#annotating the rows and columns - which are spleen, liver, sex, age,
-#infection +/-, parasitemia intensity
-
-#loading the libraries
+# loading the libraries
 library(pheatmap)
 library(gplots) # for the heatmap.2 function
 library(ggplot2)
 library(GGally)
 library(dplyr)
 
-#rerun script 1 for generating counts table or read from intermediate data
+# rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
-#loading the dataframe (file containing the read counts) from the features count step
+# loading the dataframe (file containing the read counts) from the features count step
 if(readcount){
   source("R/1_featurecounts.R")
 }else{
   tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
 }
 
-#loading metadata file
+# loading metadata file
 metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
 
-
+# adding a new column for the sample IDs with their organ identifiers
 metadata$ID <- paste(metadata$SampleID, 
                      substring(metadata$Organ, 1,1),
       sep = ".")
 
 # we have technical replicates for some samples
-# colnames in the count data have been merged by summing
+# colnames in the feature counts data have been merged by summing
 # to remove metadata replicate samples
 
+# making row names unique by adding a suffix to the duplicate sample IDs
 metadata$ID <- make.unique(metadata$ID)
 
 # filtering out rows containing technical replicates
 metadata <- metadata %>%
   filter(!grepl("\\.\\d+$", ID))
-
 
 # ordering the metadata according to counts file
 metadata <- metadata[order(metadata$ID),]
@@ -52,49 +46,34 @@ if(!all(colnames(tagseqRNAfeatureCounts) == metadata$ID)){
   stop("metadata and count data are not alligned")
 }
 
-
-#adding a new column for the hepatocystis transcriptome parasitemia to the metadata file
+# adding a new column for the hepatocystis transcriptome parasitemia to the metadata file
 metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
 
-#adding columns for thresholds >2 for hepatocystis transcriptome
+# adding columns for thresholds >2 for hepatocystis transcriptome
 metadata$hepatocystis_transcriptome_parasitemia_2 <- colSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
   rowSums(tagseqRNAfeatureCounts) >2,])
 
-#adding columns for thresholds >5 for hepatocystis transcriptome
+# adding columns for thresholds >5 for hepatocystis transcriptome
 metadata$hepatocystis_transcriptome_parasitemia_5 <- colSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
     rowSums(tagseqRNAfeatureCounts) >5,])
 
-
-#adding columns for thresholds below upper quartile for hepatocystis transcriptome
+# getting the upper quartile threshold for hepatocystis transcriptome
 uQ <- rowSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)),]) %>%
   quantile(0.75)
 
-
-#adding columns for thresholds below upper quartile for hepatocystis transcriptome
+# adding columns for thresholds below upper quartile for hepatocystis transcriptome
 metadata$hepatocystis_transcriptome_parasitemia_uQ <- colSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
     rowSums(tagseqRNAfeatureCounts)<uQ ,])
 
-rowSums(tagseqRNAfeatureCounts[grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
+# adding column for sequencing depth for each sample
+metadata$Sequencing_depth <- colSums(tagseqRNAfeatureCounts)
 
-
-
-
-hepatocystis_29_transcripts <- tagseqRNAfeatureCounts %>% 
-  filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
-         rowSums(tagseqRNAfeatureCounts)>5)
-
-rowSums(tagseqRNAfeatureCounts %>% 
-          filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
-                 rowSums(tagseqRNAfeatureCounts)>5))
-
-write.csv(hepatocystis_29_transcripts, file = "hepatocystis_29_transcripts.csv")
-
-
+colnames(metadata)
 
 
 
