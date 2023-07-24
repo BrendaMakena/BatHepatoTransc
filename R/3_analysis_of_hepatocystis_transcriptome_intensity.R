@@ -3,8 +3,6 @@
 # infection +/-, parasitemia intensity
 
 # loading the libraries
-library(pheatmap)
-library(gplots) # for the heatmap.2 function
 library(ggplot2)
 library(GGally)
 library(dplyr)
@@ -37,46 +35,8 @@ if (exists("metadata")) {
 }
 
 
-# heatmap of all transcripts
-pdf("plots/heatmap_of_all_transcripts.pdf")
-pheatmap(log10(tagseqRNAfeatureCounts +1),
-         show_colnames = TRUE,
-         show_rownames = TRUE)
 
-dev.off()
-
-# heatmap of all transcripts with greater than 5 counts
-pdf("plots/heatmap_of_all_transcripts_with_greater_than_5_counts.pdf")
-pheatmap(log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 5, ]+1),
-         show_rownames = TRUE,
-         show_colnames = TRUE,
-         color = brewer.pal(10, "RdYlBu"))
-
-dev.off()
-  
-
-       #### correlation between transcripts ####
-
-#creating a heatmap using the pheatmap function in R and annotating 
-#it using the metadata file while coloring by the "Organ" column
-
-pdf("plots/heatmap_of_all_transcripts_with_greater_than_500_counts_coloured_by_organ.pdf")
-
-pheatmap(
-  log10(tagseqRNAfeatureCounts[rowSums(tagseqRNAfeatureCounts) > 500, ] + 1),
-  show_colnames = TRUE,
-  show_rownames = TRUE,
-  annotation_col = data.frame(Organ = metadata$Organ),
-  annotation_colors = list(Organ = c("spleen" = "red", "liver" = "blue")),
-  scale = "none",
-  fontsize = 8,
-  fontsize_row = 8,
-  fontsize_col = 8)
-
-dev.off()
-
-
-      #### ggplot for correlation between the transcripts #### 
+      #### ggplots for correlation between the transcripts #### 
 
 # Scatter Plot of transcriptome infection estimates coloured by organ
 pdf("plots/scatter_plot_of_transcriptome_infection_estimates_coloured_by_organ.pdf")
@@ -110,7 +70,7 @@ ggplot(metadata,
 
 dev.off()
 
-
+#parasitemia model
 model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~ Parasitemia_in_percent * Organ,
        metadata)
 
