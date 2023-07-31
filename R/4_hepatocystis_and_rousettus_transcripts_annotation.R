@@ -1,4 +1,5 @@
-# annotation of hepatocystis transcripts
+# annotation of hepatocystis transcripts 
+
 library(rtracklayer)
 
 # rerun script 1 for generating counts table or read from intermediate data
