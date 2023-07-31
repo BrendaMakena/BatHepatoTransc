@@ -93,7 +93,7 @@ ggplot(metadata,
 dev.off()
 
 
-# scatter plot of transcripts correlation by organ coloured by infectious status
+# scatter plot of transcripts correlation by organ coloured by infection status
 pdf("plots/scatter_plot_of_organ_paired_parasitemia.pdf")
 
 ggplot(metadata, 
