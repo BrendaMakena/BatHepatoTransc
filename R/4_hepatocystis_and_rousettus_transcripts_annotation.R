@@ -33,7 +33,7 @@ merged_gtf <- readGFF("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegypt
 
 # our hepatocystis transcripts with >5 counts
 tagseqRNAfeatureCounts %>% 
-  filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
+  filter(!grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
          rowSums(tagseqRNAfeatureCounts)>5)
 
 rowSums(tagseqRNAfeatureCounts %>% 
@@ -62,7 +62,7 @@ colnames(merged_gtf)
 table(merged_gtf$type)
 table(merged_gtf$gene_biotype)
 
-# adding species column t the gtf file
+# adding species column to the gtf file
 merged_gtf$species <- ifelse(grepl("HEP_", merged_gtf$gene_id),
                              "hepatocystis",
                              "rousettus")

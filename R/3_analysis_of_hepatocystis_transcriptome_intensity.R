@@ -1,12 +1,9 @@
-# plotting heatmap of transcripts in the 169 samples - using pheatmap
-# annotating the rows and columns - which are spleen, liver, sex, age,
-# infection +/-, parasitemia intensity
+# plotting correlation plots for hepatocystis transcriptome intensities between spleen and liver
 
 # loading the libraries
 library(ggplot2)
 library(GGally)
 library(dplyr)
-library(RColorBrewer)
 library(MASS)
 library(tidyverse)
 
@@ -78,7 +75,7 @@ model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~ Parasitemia
 summary(model_parasitemia)
 
 
-# boxplot of transcripts correlations by infectious status coloured by organ
+# boxplot of transcripts correlations by infection status coloured by organ
 pdf("plots/boxplot_of_parasitemia_infected_erythrocytes_coloured_by_organ.pdf")
 
 ggplot(metadata, 
@@ -108,7 +105,7 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "organ", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Transcripts correlations coloured by organ")+
+       title = "Transcripts correlations by organ coloured by infection status")+
   theme_bw()
 
 dev.off()
@@ -125,7 +122,7 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "blood parasitemia (% infected erythrocytes)", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Blood parasitemia count") +
+       title = "Blood parasitemia count coloured by organ") +
   theme_bw()
 
 dev.off()
@@ -143,7 +140,7 @@ ggplot(metadata,
   scale_y_log10()+
   labs(x = "blood parasitemia detected", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Transcriptome parasitemia in liver vs spleen samples") +
+       title = "Transcriptome parasitemia in liver vs spleen samples based on infection status") +
   theme_bw()
 
 dev.off()
