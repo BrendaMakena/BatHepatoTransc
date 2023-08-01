@@ -73,7 +73,10 @@ metadata$hepatocystis_transcriptome_parasitemia_uQ <- colSums(tagseqRNAfeatureCo
 # adding column for sequencing depth for each sample
 metadata$Sequencing_depth <- colSums(tagseqRNAfeatureCounts)
 
-colnames(metadata)
+# metadata correction factor
+metadata$mean_correction_factor <- mean(metadata$Sequencing_depth) / 
+                                    metadata$Sequencing_depth 
 
+colnames(metadata)
 
 
