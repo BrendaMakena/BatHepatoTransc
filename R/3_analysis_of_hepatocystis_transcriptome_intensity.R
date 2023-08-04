@@ -6,7 +6,7 @@ library(GGally)
 library(dplyr)
 library(MASS)
 library(tidyverse)
-
+library(ggeffects)
 
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
@@ -68,12 +68,33 @@ ggplot(metadata,
 dev.off()
 
 #parasitemia model
-model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~ Parasitemia_in_percent * Organ,
+model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~ 
+                              Parasitemia_in_percent * Organ + 
+                            offset(log(Sequencing_depth)),
        metadata)
-
 
 summary(model_parasitemia)
 
+pdf("plots/model_parasitemia.pdf")
+ggpredict(model_parasitemia, 
+              terms = c("Parasitemia_in_percent", "Organ"),
+          condition = c(Sequencing_depth = mean(metadata$Sequencing_depth))) %>%
+  ggplot(aes(x = x, y = predicted)) +
+  geom_line(aes(color = group)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, group = group),
+              alpha = .1) +
+  #ylim(c(0, 2e+07)) +
+  geom_point(data = metadata, aes(x = Parasitemia_in_percent,
+                           y = hepatocystis_transcriptome_parasitemia*
+                             mean_correction_factor,
+                           color = Organ)) +
+  scale_y_log10() +
+  theme_bw()
+
+dev.off()
+ 
+colnames(metadata)
+# create offset
 
 # boxplot of transcripts correlations by infection status coloured by organ
 pdf("plots/boxplot_of_parasitemia_infected_erythrocytes_coloured_by_organ.pdf")
