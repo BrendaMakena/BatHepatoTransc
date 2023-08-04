@@ -56,7 +56,7 @@ dev.off()
 pdf("plots/Boxplot_of_transcriptome_infection_estimates_coloured_by_organ.pdf")
 
 ggplot(metadata, 
-       aes(x = Parasitemia_in_percent, 
+       aes(x = Organ, 
            y = hepatocystis_transcriptome_parasitemia, 
            fill = Organ)) +
   geom_boxplot() +
