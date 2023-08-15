@@ -76,6 +76,21 @@ metadata$Sequencing_depth <- colSums(tagseqRNAfeatureCounts)
 # metadata correction factor
 metadata$mean_correction_factor <- mean(metadata$Sequencing_depth) / 
                                     metadata$Sequencing_depth 
+colnames(metadata)
+# Renaming the column Infectious_status_blood
+colnames(metadata)[colnames(metadata) == "Infectious_status_blood"] <- "Infection_status_blood"
+
+# Renaming values in the "Infectious_status_blood" column
+metadata <- metadata %>%
+  mutate(
+    Infection_status_blood = case_when(
+      Infection_status_blood == 'uninfected' ~ 'undetected*',
+      Infection_status_blood == 'infected' ~ 'infected*',
+      TRUE ~ Infection_status_blood
+    )
+  )
+
+
 
 colnames(metadata)
 

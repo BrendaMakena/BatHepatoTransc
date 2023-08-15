@@ -75,6 +75,7 @@ model_parasitemia <- glm.nb(hepatocystis_transcriptome_parasitemia ~
 
 summary(model_parasitemia)
 
+
 pdf("plots/model_parasitemia.pdf")
 ggpredict(model_parasitemia, 
               terms = c("Parasitemia_in_percent", "Organ"),
@@ -89,30 +90,29 @@ ggpredict(model_parasitemia,
                              mean_correction_factor,
                            color = Organ)) +
   scale_y_log10() +
+  labs(x = "parasites detected in blood smear",
+       y = "predicted infection intensity") +
   theme_bw()
 
 dev.off()
  
-colnames(metadata)
-# create offset
 
 # boxplot of transcripts correlations by infection status coloured by organ
 pdf("plots/boxplot_of_parasitemia_infected_erythrocytes_coloured_by_organ.pdf")
 
 ggplot(metadata, 
-       aes(x = Infectious_status_blood, 
+       aes(x = Infection_status_blood, 
            y = hepatocystis_transcriptome_parasitemia, 
            color = Organ)) +
   geom_boxplot(outlier.shape = NA) +
   geom_point(position = position_jitterdodge(jitter.width = 0.25))+
   scale_y_log10()+
-  labs(x = "blood parasitemia detected", 
+  labs(x = "parasites detected in blood smear", 
        y = "transcriptome infection estimate (#reads)",
        title = "Transcripts correlations coloured by organ") +
   theme_bw()
 
 dev.off()
-
 
 # scatter plot of transcripts correlation by organ coloured by infection status
 pdf("plots/scatter_plot_of_organ_paired_parasitemia.pdf")
@@ -120,15 +120,16 @@ pdf("plots/scatter_plot_of_organ_paired_parasitemia.pdf")
 ggplot(metadata, 
        aes(x = Organ, 
            y = hepatocystis_transcriptome_parasitemia, 
-           color = Infectious_status_blood)) +
+           color = Infection_status_blood)) +
   geom_point()+
   geom_line(aes(group = SampleID))+
   scale_y_log10()+
   labs(x = "organ", 
        y = "transcriptome infection estimate (#reads)",
-       title = "Transcripts correlations by organ coloured by infection status")+
-  theme_bw()
-
+       title = "Transcripts correlations by organ coloured by infection status") +
+  theme_bw() +
+  scale_color_manual(values = c("infected*" = "green", "undetected*" = "gold"))
+  
 dev.off()
 
 # scatter plot of blood parasitemia count coloured by organ
@@ -149,11 +150,11 @@ ggplot(metadata,
 dev.off()
 
 
-# box plot of infected vs uninfected coloured by organ
+# box plot of infected vs undetected coloured by organ
 pdf("plots/boxplot_of_transcriptome_parasitemia_in_liver_vs_spleen_samples.pdf")
 
 ggplot(metadata, 
-       aes(x = Infectious_status_blood, 
+       aes(x = Infection_status_blood, 
            y = hepatocystis_transcriptome_parasitemia, 
            color = Organ)) +
   geom_boxplot(outlier.shape = NA) +
@@ -167,27 +168,28 @@ ggplot(metadata,
 dev.off()
 
 
-# scatter plot of liver vs spleen parasitemia coloured by infected and uninfected
-pdf("plots/scatter_plot_for_spleen_and_liver_infectious_status.pdf")
+# scatter plot of liver vs spleen parasitemia coloured by infected and uninfected 
+#for samples with both spleen and liver tissues
+pdf("plots/scatter_plot_for_spleen_and_liver_infection_status_in_samples_with_both_tissues.pdf")
 as_tibble(metadata) %>% 
   dplyr::select(hepatocystis_transcriptome_parasitemia,
-                Organ, SampleID, Infectious_status_blood) %>%
+                Organ, SampleID, Infection_status_blood) %>%
   pivot_wider(values_from = c(hepatocystis_transcriptome_parasitemia),
               names_from = Organ,
               values_fill = NA) %>% 
   filter(!is.na(Liver) & !is.na(Spleen)) %>%
-  ggplot(aes(Liver, Spleen, color = Infectious_status_blood)) +
+  ggplot(aes(Liver, Spleen, color = Infection_status_blood)) +
   geom_point() +
-  scale_y_log10() +
-  scale_x_log10()+ 
-  labs(title = "Liver vs Spleen Parasitemia") +
-  theme_bw()
+  geom_abline(intercept = 0, slope = 1, 
+              linetype = "dashed", color = "gray") +  # Reference line
+  scale_y_log10(expand = c(0, 0)) +  # Set expand argument to avoid extra space 
+  scale_x_log10(expand = c(0, 0)) +  # Set expand argument to avoid extra space 
+  labs(title = "Liver vs spleen parasitemia in samples with both tissues") +
+  theme_bw() +
+  scale_color_manual(values = c("infected*" = "green", "undetected*" = "gold")) #+
+# coord_fixed(ratio = 1) +
+# xlim(c(1, max(metadata$hepatocystis_transcriptome_parasitemia, na.rm = TRUE))) +
+# ylim(c(1, max(metadata$hepatocystis_transcriptome_parasitemia, na.rm = TRUE)))
 
 dev.off()
-
-
-
-
-
-
 
