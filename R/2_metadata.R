@@ -7,7 +7,7 @@ library(gplots) # for the heatmap.2 function
 library(ggplot2)
 library(GGally)
 library(dplyr)
-
+library(data.table)
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
@@ -76,7 +76,7 @@ metadata$Sequencing_depth <- colSums(tagseqRNAfeatureCounts)
 # metadata correction factor
 metadata$mean_correction_factor <- mean(metadata$Sequencing_depth) / 
                                     metadata$Sequencing_depth 
-colnames(metadata)
+
 # Renaming the column Infectious_status_blood
 colnames(metadata)[colnames(metadata) == "Infectious_status_blood"] <- "Infection_status_blood"
 
@@ -90,8 +90,22 @@ metadata <- metadata %>%
     )
   )
 
+# Calculating RPM values for each feature
+rpm <- tagseqRNAfeatureCounts[!grepl("^HEP_", 
+           rownames(tagseqRNAfeatureCounts)), ] %>%
+  mutate(across(everything(),
+                ~ . / colSums(tagseqRNAfeatureCounts[!grepl("^HEP_", 
+         rownames(tagseqRNAfeatureCounts)),]) * 1e6))
 
+# getting the rpmh values for the features 
+rpmh <- tagseqRNAfeatureCounts[!grepl("^HEP_", 
+        rownames(tagseqRNAfeatureCounts)), ] %>%
+  mutate(across(everything(), #or mutate(across(starts_with("DMR"),
+      ~ . / colSums(tagseqRNAfeatureCounts[!grepl("^HEP_", 
+                rownames(tagseqRNAfeatureCounts)), ]) * 1e6))
 
-colnames(metadata)
+# adding a new column for the rpmh to the metadata file
+metadata$rpmh <- colSums(rpmh)
+
 
 

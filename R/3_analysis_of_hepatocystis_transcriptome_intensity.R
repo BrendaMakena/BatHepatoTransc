@@ -8,6 +8,7 @@ library(MASS)
 library(tidyverse)
 library(ggeffects)
 
+
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
@@ -46,8 +47,9 @@ ggplot(metadata,
   scale_y_log10()+
   geom_smooth(method = "lm") +
   labs(title = "Scatter Plot of transcriptome infection estimates coloured by organ", 
-       x = "blood parasitemia (% infected erythrocytes)", 
-       y = "transcriptome infection estimate (#reads)") +
+       x = "blood parasitemia in % 
+       (percent of infected erythrocytes)", 
+       y = "# reads of Hepatocystis transcripts)") +
   theme_bw()
 
 dev.off()
@@ -61,7 +63,6 @@ ggplot(metadata,
            fill = Organ)) +
   geom_boxplot() +
   labs(title = "Boxplot of transcriptome infection estimates coloured by organ", 
-       x = "blood parasitemia (% infected erythrocytes)", 
        y = "transcriptome infection estimate (#reads)") +
   theme_bw()
 
@@ -86,12 +87,13 @@ ggpredict(model_parasitemia,
               alpha = .1) +
   #ylim(c(0, 2e+07)) +
   geom_point(data = metadata, aes(x = Parasitemia_in_percent,
-                           y = hepatocystis_transcriptome_parasitemia*
-                             mean_correction_factor,
-                           color = Organ)) +
+             y = hepatocystis_transcriptome_parasitemia*
+             mean_correction_factor,
+             color = Organ)) +
   scale_y_log10() +
-  labs(x = "parasites detected in blood smear",
-       y = "predicted infection intensity") +
+  labs(x = "blood parasitemia in %
+       (percentage of infected erythrocytes)",
+       y = "# of reads of Hepatocystis transcripts") +
   theme_bw()
 
 dev.off()
@@ -107,8 +109,9 @@ ggplot(metadata,
   geom_boxplot(outlier.shape = NA) +
   geom_point(position = position_jitterdodge(jitter.width = 0.25))+
   scale_y_log10()+
-  labs(x = "parasites detected in blood smear", 
-       y = "transcriptome infection estimate (#reads)",
+  labs(x = "infection status
+       (*by microscopy of blood smears and PCR)", 
+       y = "# of reads of Hepatocystis transcripts",
        title = "Transcripts correlations coloured by organ") +
   theme_bw()
 
@@ -125,12 +128,32 @@ ggplot(metadata,
   geom_line(aes(group = SampleID))+
   scale_y_log10()+
   labs(x = "organ", 
-       y = "transcriptome infection estimate (#reads)",
+       y = "# of reads of Hepatocystis transcripts",
        title = "Transcripts correlations by organ coloured by infection status") +
   theme_bw() +
   scale_color_manual(values = c("infected*" = "green", "undetected*" = "gold"))
   
 dev.off()
+
+# scatter plot of transcripts correlation by organ coloured by infection status and using the rpmh values
+pdf("plots/scatter_plot_of_organ_paired_parasitemia_using_rpmh_values.pdf")
+
+ggplot(metadata, 
+       aes(x = Organ, 
+           y = rpmh, 
+           color = Infection_status_blood)) +
+  geom_point()+
+  geom_line(aes(group = SampleID))+
+  scale_y_log10()+
+  labs(x = "organ", 
+       y = "# of reads of Hepatocystis transcripts",
+       title = "Transcripts correlations by organ coloured 
+       by infection status (using rpmh values)") +
+  theme_bw() +
+  scale_color_manual(values = c("infected*" = "green", "undetected*" = "gold"))
+
+dev.off()
+
 
 # scatter plot of blood parasitemia count coloured by organ
 pdf("plots/scatter_plot_of_blood_parasitemia_count.pdf")
@@ -142,8 +165,9 @@ ggplot(metadata,
   geom_point()+
   geom_line(aes(group = SampleID))+
   scale_y_log10()+
-  labs(x = "blood parasitemia (% infected erythrocytes)", 
-       y = "transcriptome infection estimate (#reads)",
+  labs(x = "blood parasitemia in % 
+       (percent of infected erythrocytes)", 
+       y = "# of reads of Hepatocystis transcripts",
        title = "Blood parasitemia count coloured by organ") +
   theme_bw()
 
@@ -151,7 +175,7 @@ dev.off()
 
 
 # box plot of infected vs undetected coloured by organ
-pdf("plots/boxplot_of_transcriptome_parasitemia_in_liver_vs_spleen_samples.pdf")
+pdf("plots/boxplot_of_transcriptome_intensity_in_liver_vs_spleen_samples.pdf")
 
 ggplot(metadata, 
        aes(x = Infection_status_blood, 
@@ -160,9 +184,10 @@ ggplot(metadata,
   geom_boxplot(outlier.shape = NA) +
   geom_point(position = position_jitterdodge(jitter.width = 0.25))+
   scale_y_log10()+
-  labs(x = "blood parasitemia detected", 
-       y = "transcriptome infection estimate (#reads)",
-       title = "Transcriptome parasitemia in liver vs spleen samples based on infection status") +
+  labs(x = "infection status
+       (* by microscopy of blood smears and PCR)", 
+       y = "# of reads of Hepatocystis transcripts",
+       title = "Transcriptome intensity in liver vs spleen samples based on infection status") +
   theme_bw()
 
 dev.off()
@@ -192,4 +217,32 @@ as_tibble(metadata) %>%
 # ylim(c(1, max(metadata$hepatocystis_transcriptome_parasitemia, na.rm = TRUE)))
 
 dev.off()
+
+
+# scatter plot of liver vs spleen parasitemia coloured by infected and uninfected using rpmh values 
+#for samples with both spleen and liver tissues
+pdf("plots/scatter_plot_for_spleen_and_liver_infection_status_in_samples_with_both_tissues_using_rpmh_values.pdf")
+as_tibble(metadata) %>% 
+  dplyr::select(rpmh,
+                Organ, SampleID, Infection_status_blood) %>%
+  pivot_wider(values_from = c(rpmh),
+              names_from = Organ,
+              values_fill = NA) %>% 
+  filter(!is.na(Liver) & !is.na(Spleen)) %>%
+  ggplot(aes(Liver, Spleen, color = Infection_status_blood)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, 
+              linetype = "dashed", color = "gray") +  # Reference line
+  scale_y_log10(expand = c(0, 0)) +  # Set expand argument to avoid extra space 
+  scale_x_log10(expand = c(0, 0)) +  # Set expand argument to avoid extra space 
+  labs(title = "Liver vs spleen parasitemia in samples with both tissues using rpmh values") +
+  theme_bw() +
+  scale_color_manual(values = c("infected*" = "green", "undetected*" = "gold")) #+
+# coord_fixed(ratio = 1) +
+# xlim(c(1, max(metadata$hepatocystis_transcriptome_parasitemia, na.rm = TRUE))) +
+# ylim(c(1, max(metadata$hepatocystis_transcriptome_parasitemia, na.rm = TRUE)))
+
+dev.off()
+
+
 
