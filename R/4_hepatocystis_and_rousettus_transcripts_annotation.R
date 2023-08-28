@@ -34,12 +34,17 @@ merged_gtf <- readGFF("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegypt
 
 # our hepatocystis transcripts with >5 counts
 tagseqRNAfeatureCounts %>% 
-  filter(!grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
+  filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
          rowSums(tagseqRNAfeatureCounts)>5)
 
 rowSums(tagseqRNAfeatureCounts %>% 
           filter(grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
                  rowSums(tagseqRNAfeatureCounts)>5))
+
+# rousettus transcripts
+tagseqRNAfeatureCounts %>% 
+  filter(!grepl("HEP_",rownames(tagseqRNAfeatureCounts),ignore.case = TRUE),
+         rowSums(tagseqRNAfeatureCounts)>5)
 
 
 # are our 29 hepatocystis transcripts IDs present in the hepatocystis proteins table from NCBI
