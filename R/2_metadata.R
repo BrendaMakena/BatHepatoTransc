@@ -90,22 +90,9 @@ metadata <- metadata %>%
     )
   )
 
-# Calculating RPM values for each feature
-rpm <- tagseqRNAfeatureCounts[!grepl("^HEP_", 
-           rownames(tagseqRNAfeatureCounts)), ] %>%
-  mutate(across(everything(),
-                ~ . / colSums(tagseqRNAfeatureCounts[!grepl("^HEP_", 
-         rownames(tagseqRNAfeatureCounts)),]) * 1e6))
 
-# getting the rpmh values for the features 
-rpmh <- tagseqRNAfeatureCounts[!grepl("^HEP_", 
-        rownames(tagseqRNAfeatureCounts)), ] %>%
-  mutate(across(everything(), #or mutate(across(starts_with("DMR"),
-      ~ . / colSums(tagseqRNAfeatureCounts[!grepl("^HEP_", 
-                rownames(tagseqRNAfeatureCounts)), ]) * 1e6))
+# Calculating RPMH values for each feature
+metadata$rpmh <- metadata$hepatocystis_transcriptome_parasitemia * 
+                 metadata$mean_correction_factor 
 
-# adding a new column for the rpmh to the metadata file
-metadata$rpmh <- colSums(rpmh)
-
-
-
+colnames(metadata)
