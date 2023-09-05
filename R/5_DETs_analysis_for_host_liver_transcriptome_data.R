@@ -101,11 +101,100 @@ for (i in 1:length(list_of_DETs)) {
 }
 
 # Create a summary table for the DE transcripts overlaps
-colnames(overlap_matrix) <- paste("List", 1:length(list_of_DETs))
+colnames(overlap_matrix) <- c("Intercept", "Season", "Age_2category", "Sex", "rpmh_scaled")
 rownames(overlap_matrix) <- colnames(overlap_matrix)
 overlap_matrix
 
+# venn diagram for all the DETs in the 4 categories
 
+# Defining category names (replace these with your actual category names)
+category_names <- c("Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Defining colors for each category
+category_colors <- c("yellow", "green", "red", "purple") 
+
+
+# Create Venn diagrams for all transcripts in each category
+for (i in 1:length(category_names)) {
+  cat <- category_names[i]
+  
+  # Select all DETs for the current category
+  selected_DETs <- list_of_DETs[[i]]
+  
+  # Create Venn diagram for the category
+  venn.plot <- venn.diagram(
+    x = selected_DETs,
+    category.names = cat,
+    filename = NULL,
+    output = FALSE, # Prevents the creation of log files
+    col = category_colors[i],
+    fill = category_colors[i],
+    annotation.cex = 1.2  # Adjust the font size as needed
+  )
+  
+  # Saving the Venn diagram as a PDF file
+  pdf(paste0("plots/Venn_all_categories.pdf"), width = 8, height = 8)  # Adjust width and height as needed
+  grid.draw(venn.plot)
+  dev.off()  # Close the PDF device
+}
+
+
+
+# Define category names (excluding "Intercept")
+category_names <- c("Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Define colors for each category
+category_colors <- c("yellow", "green", "red", "purple")
+
+
+# Create Venn diagram for the other four categories
+venn.plot <- venn.diagram(
+  x = list_of_DETs[-1],  # Exclude the first category ("Intercept")
+  category.names = category_names,
+  filename = NULL,
+  output = FALSE, # Prevents the creation of log files
+  col = category_colors,
+  fill = category_colors,
+  annotation.cex = 1.2,  # Adjust the font size as needed
+  main = "Venn diagram of all DETs in all categories"
+)
+
+# Saving the Venn diagram as a PDF file
+pdf("plots/Venn_all_DETs_all_categories.pdf", width = 8, height = 8)  # Adjust width and height as needed
+grid.draw(venn.plot)
+dev.off()  # Close the PDF device
+
+
+# venn diagram for all DETs with intercept included
+
+# Define category names (excluding "Intercept")
+category_names <- c("Intercept", "Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Define colors for each category
+category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
+
+# Create Venn diagram for the other four categories
+venn.plot <- venn.diagram(
+  x = list_of_DETs,
+  category.names = category_names,
+  filename = NULL,
+  output = FALSE, # Prevents the creation of log files
+  col = category_colors,
+  fill = category_colors,
+  annotation.cex = 1.2,  # Adjust the font size as needed
+  main = "Venn diagram of all DETs in all categories with intercept"
+)
+
+# Saving the Venn diagram as a PDF file
+pdf("plots/Venn_all_DETs_all_categories_with_intercept.pdf", width = 8, height = 8)  # Adjust width and height as needed
+grid.draw(venn.plot)
+dev.off()  # Close the PDF device
 
 # venn diagrams for the top 250 DETs in each of the five categories
 
@@ -159,6 +248,46 @@ venn.plot <- venn.diagram(
 pdf("plots/Selected_Categories_Venn_diagram.pdf", width = 8, height = 8)
 grid.draw(venn.plot)
 dev.off()  # Close the PDF file
+
+
+# loop for all 5 categories venn diagrams compared pairwise
+
+# Defining category names
+category_names <- c("Intercept", "Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Defining colors for each category
+category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
+
+# Creating Venn diagrams for all pairs of categories using all DETs
+for (i in 1:(length(category_names) - 1)) {
+  for (j in (i + 1):length(category_names)) {
+    cat1 <- category_names[i]
+    cat2 <- category_names[j]
+    
+    # Select all DETs for the two categories
+    selected_DETs <- list_of_DETs[category_names %in% c(cat1, cat2)]
+    
+    # Creating Venn diagram for the pair of categories
+    venn.plot <- venn.diagram(
+      x = selected_DETs,
+      category.names = c(cat1, cat2),
+      filename = NULL,
+      output = FALSE,  # Prevents the creation of log files
+      col = category_colors[category_names %in% c(cat1, cat2)],
+      fill = category_colors[category_names %in% c(cat1, cat2)],
+      annotation.cex = 1.2  # Adjust the font size as needed
+    )
+    
+    # Saving the Venn diagram as a PDF file
+    pdf(paste0("plots/Venn_", cat1, "_vs_", cat2, ".pdf"), width = 8, height = 8)  # Adjust width and height as needed
+    grid.draw(venn.plot)
+    dev.off()  # Close the PDF device
+  }
+}
+
+
 
 
 # MA plots
@@ -310,6 +439,36 @@ for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
   dev.off()
 }
 
+# Iterate through category names
+for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
+  # Create a list to store data for all genes in the category
+  gene_data_list <- list()
+  
+  # Loop through DETs and create ggplot2 plots for each
+  for (gene in list_of_DETs[[category_name]]) {
+    # Subset the data for the specific DET and create the ggplot2 plot
+    gene_data <- plotCounts(dds_liver, gene = gene, 
+                            intgroup = category_name, returnData = TRUE)
+    
+    gene_data_list[[gene]] <- gene_data
+  }
+  
+  # Save ggplot2-based count plots for DETs in the category
+  pdf(file.path("plots/", paste("liver_DETs_plot_counts_for_", category_name, "_transcripts.pdf")), 
+      width = 12, height = 12)
+  
+  # Plot all DETs in the category
+  for (gene in list_of_DETs[[category_name]]) {
+    p <- ggplot(gene_data_list[[gene]], aes(x = .data[[category_name]], y = count)) + 
+      geom_point(position = position_jitter(w = 0.1, h = 0)) + 
+      scale_y_log10(breaks = c(25, 100, 400))
+    
+    print(p)  # Print the plot to generate and save it
+  }
+  
+  dev.off()
+}
+
 
 # alternatively plotting the counts for individual transcripts
 pdf("plots/liver_DTEs_plotcounts_for_LOC107508184_transcript.pdf", width = 12, height = 12)
@@ -326,23 +485,23 @@ mcols(res_liver)$description
 pdf("plots/liver_DTEs_sex_category_volcano_plot.pdf", width = 12, height = 12)
 
 with(res_liver, plot(log2FoldChange, -log10(pvalue), 
-                     pch=20, main="Volcano plot for sex category", xlim=c(-3,3)))
+                     pch=20, main="Volcano plot for sex category padj<0.1", xlim=c(-3,3)))
 
-# Adding colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
-with(subset(res_liver, padj<.01 ), 
+# Adding colored points: blue if padj<0.1, red if log2FC>1 and padj<0.05)
+with(subset(res_liver, padj<.1 ), 
      points(log2FoldChange, -log10(pvalue), 
             pch=20, col="blue"))
 
-with(subset(res_liver, (padj<.01 & abs(log2FoldChange)>2)),
+with(subset(res_liver, (padj<.1 & abs(log2FoldChange)>2)),
      points(log2FoldChange, -log10(pvalue), 
             pch=20, col="red"))
 
 dev.off()
 
-# volcano plots for all 5 categories
+# volcano plots for all 5 categories with padjvalue<0.01
 
 # Create a PDF file for saving the volcano plots
-pdf("plots/volcano_plots.pdf", width = 12, height = 12)
+pdf("plots/volcano_plots_padjvalue<0.01.pdf", width = 12, height = 12)
 
 for (i in seq_along(list_of_results)) {
   category_name <- resultsNames(dds_liver)[i]  # Getting the category name
@@ -368,6 +527,34 @@ for (i in seq_along(list_of_results)) {
 # Save the PDF file
 dev.off()
 
+
+# plotting the 5 categories with padjvalue of 0.1 instead of 0.01
+# Create a PDF file for saving the volcano plots
+pdf("plots/volcano_plots_padjvalue<0.1.pdf", width = 12, height = 12)
+
+for (i in seq_along(list_of_results)) {
+  category_name <- resultsNames(dds_liver)[i]  # Getting the category name
+  result <- list_of_results[[i]]  # Get results for the current category
+  
+  # Create the volcano plot
+  with(result, {
+    plot(log2FoldChange, -log10(padj), 
+         pch = 20, main = paste("Volcano plot for", category_name), 
+         xlim = c(-3, 3))
+    
+    # Adding colored points: blue if padj < 0.1, red if log2FC > 1 and padj < 0.05)
+    points(log2FoldChange, -log10(padj), pch = 20, 
+           col = ifelse(padj < 0.1, "blue", 
+                        ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")))
+    
+    # Customize the legend
+    legend("topright", legend = c("padj < 0.1", "log2FC > 1 & padj < 0.05", "Other"), 
+           col = c("blue", "red", "black"), pch = 20)
+  })
+}
+
+# Save the PDF file
+dev.off()
 
 
 # PCA plots
