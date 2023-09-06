@@ -2,11 +2,16 @@
 # differential expression tests are based on a negative binomial 
 #generalized linear model
 
-# separate analysis for liver and spleen 
+# analysis for host spleen transcripts
+BiocManager::install("apeglm")
+install.packages("VennDiagram")
+install.packages("ggVennDiagram")
 library(DESeq2)
 library(ggplot2)
 library(dplyr)
 library(apeglm)
+library(VennDiagram)
+library(ggVennDiagram)
 
 
 # Filtering metadata to keep only rows for spleen samples
@@ -20,11 +25,12 @@ host_counts_spleen <- host_counts[, metadata_spleen$ID]
 
 ####  DETs analysis for spleen ####
 
-# constructing the DESeqdataset object with Sex as condition of test
+# constructing the DESeqdataset object with rpmh_scaled as condition of test
 dds_spleen <- DESeqDataSetFromMatrix(countData = host_counts_spleen,
-                                    colData = metadata_spleen,
-                                    design = ~Season+Age_2category+Sex,
-                                    tidy = FALSE)
+                              colData = metadata_spleen,
+                              design = ~Season+Age_2category+Sex+
+                              rpmh_scaled,
+                              tidy = FALSE)
 
 # viewing the object
 dds_spleen
@@ -45,39 +51,211 @@ dds_spleen <- DESeq(dds_spleen)
 
 
 # getting the results table
-res_spleen <- results(dds_spleen)
+#res_spleen <- results(dds_spleen)
+#res_spleen
 
-# viewing the table
-res_spleen
+#alternatively
+list_of_spleen_results <- lapply(resultsNames(dds_spleen), 
+                          function(n){
+                          results(dds_spleen, name = n)
+                          })
+
+lapply(list_of_spleen_results, head)
 
 # head(results(dds_spleen, tidy = TRUE))
 
 # summary of DTE
-summary(res_spleen)
+#summary(res_spleen)
 
 # sorting table by p values
-res_spleen <- res_spleen[order(res_spleen$padj),]
-head(res_spleen)
-
-write.csv(res_spleen, file = "intermediateData/spleen_DETs.csv")
-
-# adjusted p-values less than 0.1
-sum(res_spleen$padj < 0.1, na.rm=TRUE)  # =68 DETs
+#res_spleen <- res_spleen[order(res_spleen$padj),]
+#head(res_spleen)
 
 
-# plotting the results 
+# list of transcripts with significant p value for all the conditions
+list_of_spleen_DETs <- lapply(list_of_spleen_results, 
+                      function(rdf){
+                      rdf <- rdf[!is.na(rdf$padj),]
+                      rownames(rdf[rdf$padj< 0.1,])
+                      })
+
+# number of DETs for the categories
+lapply(list_of_spleen_DETs, length)
+lapply(list_of_spleen_DETs, head)
+
+
+
+          #### plotting the results #### 
+
+# Calculating overlaps between the 5 categories
+overlap_matrix_spleen <- matrix(0, nrow = length(list_of_spleen_DETs), 
+                         ncol = length(list_of_spleen_DETs))
+for (i in 1:length(list_of_spleen_DETs)) {
+  for (j in 1:length(list_of_spleen_DETs)) {
+    if (i != j) {
+      common_genes <- length(intersect(list_of_spleen_DETs[[i]], 
+                                       list_of_spleen_DETs[[j]]))
+      overlap_matrix[i, j] <- common_genes
+    }
+  }
+}
+
+# Create a summary table for the DE transcripts overlaps
+colnames(overlap_matrix_spleen) <- c("Intercept", "Season", "Age_2category", "Sex", "rpmh_scaled")
+rownames(overlap_matrix_spleen) <- colnames(overlap_matrix_spleen)
+overlap_matrix_spleen
+
+
+# venn diagram for all the DETs in the 4 categories
+
+# Defining category names 
+category_names <- c("Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Defining colors for each category
+category_colors <- c("yellow", "green", "red", "purple") 
+
+
+# Creating Venn diagrams for all transcripts in each category
+for (i in 1:length(category_names)) {
+  cat <- category_names[i]
+  
+  # Select all DETs for the current category
+  selected_spleen_DETs <- list_of_spleen_DETs[[i]]
+  
+  # Create Venn diagram for the category
+  venn.plotspleen <- venn.diagram(
+    x = selected_spleen_DETs,
+    category.names = cat,
+    filename = NULL,
+    output = FALSE, # Prevents the creation of log files
+    col = category_colors[i],
+    fill = category_colors[i],
+    annotation.cex = 1.2  
+  )
+  
+  # Saving the Venn diagram as a PDF file
+  pdf(paste0("plots/Venn_all_categories_spleen.pdf"), width = 4, height = 4)  
+  grid.draw(venn.plots)
+  dev.off()  # Close the PDF device
+}
+
+# Define category names (excluding "Intercept")
+category_names <- c("Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Define colors for each category
+category_colors <- c("yellow", "green", "red", "purple")
+
+
+# Create Venn diagram for the other four categories
+venn.plotspleen <- venn.diagram(
+  x = list_of_spleen_DETs[-1],  # Exclude the first category ("Intercept")
+  category.names = category_names,
+  filename = NULL,
+  output = FALSE, # Prevents the creation of log files
+  col = category_colors,
+  fill = category_colors,
+  annotation.cex = 1.2,  # Adjust the font size as needed
+  main = "Venn diagram of all spleen DETs in all categories"
+)
+
+# Saving the Venn diagram as a PDF file
+pdf("plots/Venn_all_DETs_all_categories_spleen.pdf", width = 8, height = 8)  # Adjust width and height as needed
+grid.draw(venn.plotspleen)
+dev.off()  # Close the PDF device
+
+
+# venn diagram for all spleen DETs with intercept included
+
+# Define category names (excluding "Intercept")
+category_names <- c("Intercept", "Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Define colors for each category
+category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
+
+# Create Venn diagram for the other four categories
+venn.plotspleen <- venn.diagram(
+  x = list_of_spleen_DETs,
+  category.names = category_names,
+  filename = NULL,
+  output = FALSE, # Prevents the creation of log files
+  col = category_colors,
+  fill = category_colors,
+  annotation.cex = 1.2,  
+  main = "Venn diagram of all spleen DETs in all categories with intercept"
+)
+
+# Saving the Venn diagram as a PDF file
+pdf("plots/Venn_all_DETs_all_categories_with_intercept_spleen.pdf", width = 8, height = 8)
+grid.draw(venn.plotspleen)
+dev.off()  # Close the PDF device
+
+
+# loop for all 5 categories venn diagrams compared pairwise
+
+# Defining category names
+category_names <- c("Intercept", "Season(Rainy vs Dry)", 
+                    "Age 2category(Young vs Adult)", 
+                    "Sex (Male vs Female)", "rpmh scaled")
+
+# Defining colors for each category
+category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
+
+# Creating Venn diagrams for all pairs of categories using all DETs
+for (i in 1:(length(category_names) - 1)) {
+  for (j in (i + 1):length(category_names)) {
+    cat1 <- category_names[i]
+    cat2 <- category_names[j]
+    
+    # Select all DETs for the two categories
+    selected_spleen_DETs <- list_of_spleen_DETs[category_names %in% c(cat1, cat2)]
+    
+    # Creating Venn diagram for the pair of categories
+    venn.plotspleen <- venn.diagram(
+      x = selected_spleen_DETs,
+      category.names = c(cat1, cat2),
+      filename = NULL,
+      output = FALSE,  # Prevents the creation of log files
+      col = category_colors[category_names %in% c(cat1, cat2)],
+      fill = category_colors[category_names %in% c(cat1, cat2)],
+      annotation.cex = 1.2
+    )
+    
+    # Saving the Venn diagram as a PDF file
+    pdf(paste0("plots/Venn_", cat1, "_vs_", cat2, "_spleen.pdf"), width = 8, height = 8)
+    grid.draw(venn.plotspleen)
+    dev.off()  # Close the PDF device
+  }
+}
+
+
 
 #MA plots
-pdf("plots/spleen_DTEs_MA_plot.pdf", width = 12, height = 12)
-plotMA(res_spleen, ylim = c(-2, 2))
-dev.off()
-
         #shows the log2 fold changes attributable to a given variable 
         #over the mean of normalized counts for all the samples in the
         #DESeqDataSet. Points are colored blue if the adjusted p value 
         #is less than 0.1 (statistically significant points). 
         #Points which fall out of the window are plotted as open 
         #triangles pointing either up or down.
+
+# Function to create and save MA plots in DESeq2 style
+create_MA_plot_spleen <- function(result, category_name,plots) {
+  pdf(file.path("plots/", paste(category_name, "_spleen_MA_plot.pdf")))
+  plotMA(result, ylim = c(-2, 2), main = paste("MA Plot for", category_name))
+  dev.off()
+}
+
+# Create and save MA plots for each category using a loop
+for (i in seq_along(list_of_spleen_results)) {
+  category_name <- resultsNames(dds_spleen)[i]
+  create_MA_plot_spleen(list_of_spleen_results[[i]], category_name, "plots")
+}
+
 
 # getting the resLFC - Log fold change shrinkage for visualization and ranking
 
@@ -94,14 +272,47 @@ res_spleen_LFC
       # from low count genes without requiring arbitrary filtering thresholds.
 
 # plotting the LFC
-pdf("plots/spleen_LFC_DTEs_MA_plot.pdf", width = 12, height = 12)
+pdf("plots/spleen_LFC_DETs_sex_MA_plot.pdf", width = 12, height = 12)
 plotMA(res_spleen_LFC, ylim = c(-2, 2))
 dev.off()
 
+# plotting the LFC for all my 4 categories
+
+# Mapping between category names and coefficient names
+category_coefficients <- c(
+  "Season(Rainy vs Dry)" = "Season_Rainy_vs_Dry",
+  "Age 2category(Young vs Adult)" = "Age_2category_Young_vs_Adult",
+  "Sex (Male vs Female)" = "Sex_Male_vs_Female",
+  "rpmh scaled" = "rpmh_scaled"
+)
+
+# Looping through each category to create and save MA plots
+for (category_name in names(category_coefficients)) {
+  coef_name <- category_coefficients[category_name]
+  
+  # Check if the coefficient name exists in resultsNamesDDS
+  if (coef_name %in% resultsNames(dds_spleen)) {
+    # Calculating resLFC for the given category
+    res_spleen_LFC <- lfcShrink(dds_spleen, coef = coef_name, 
+                               type = "apeglm")
+    
+    # Creating the MA plot
+    pdf(file.path("plots/", paste("spleen_LFC_", 
+                                  category_name, "_MA_plot.pdf")), 
+        width = 12, height = 12)
+    plotMA(res_spleen_LFC, ylim = c(-2, 2), 
+           main = paste("Spleen LFC MA Plot for category", category_name))
+    dev.off()
+  } else {
+    cat("Coefficient", coef_name, "not found in DESeq results.\n")
+  }
+}
+
 
 # Plot counts
-# plotCounts function compares the normalized counts between the comparison groups,
-# sex Male vs female, for the genes
+
+  # plotCounts function compares the normalized counts between the 
+  # comparison groups, sex Male vs female, for the genes
 
 # plotting transcript with lowest p adjusted value from results table
 pdf("plots/spleen_DTEs_plotcounts_for_min_padjvalue_transcript.pdf", width = 12, height = 12)
@@ -122,7 +333,7 @@ ggplot(plotCounts(dds_spleen, gene=which.min(res_spleen$padj),
 dev.off()
 
 # alternatively plotting the counts for individual transcripts
-pdf("plots/spleen_DTEs_plotcounts_for_LOC107508184_transcript.pdf", width = 12, height = 12)
+pdf("plots/spleen_DETs_plotcounts_for_LOC107508184_transcript_category_sex.pdf", width = 12, height = 12)
 
 plotCounts(dds_spleen, gene = "LOC107508184", intgroup = "Sex" )
 
@@ -133,32 +344,90 @@ mcols(res_spleen)$description
 
 
 # volcano plots
-pdf("plots/spleen_DTEs_volcano_plot.pdf", width = 12, height = 12)
 
-with(res_spleen, plot(log2FoldChange, -log10(pvalue), 
-                     pch=20, main="Volcano plot", xlim=c(-3,3)))
+# Looping through each category to create and save volcano plots with padj value < 0.01
+for (i in seq_along(list_of_spleen_results)) {
+  category_name <- resultsNames(dds_spleen)[i]  # Getting the category name
+  result <- list_of_spleen_results[[i]]  # Get results for the current category
+  
+  # Create the volcano plot
+  with(result, {
+    pdf(file.path("plots/", paste("spleen_volcano_", category_name, "_padjvalue<0.01.pdf")), 
+        width = 12, height = 12)  # Opens PDF for the current category
+    
+    plot(log2FoldChange, -log10(padj), 
+         pch = 20, main = paste("Volcano plot for spleen", category_name), 
+         xlim = c(-3, 3))
+    
+    # Adding colored points: blue if padj < 0.01, red if log2FC > 1 and padj < 0.05)
+    points(log2FoldChange, -log10(padj), pch = 20, 
+           col = ifelse(padj < 0.01, "blue", 
+                        ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")))
+    
+    # Customize the legend
+    legend("topright", legend = c("padj < 0.01", "log2FC > 1 & padj < 0.05", "Other"), 
+           col = c("blue", "red", "black"), pch = 20)
+    
+    dev.off()  # Close the PDF for the current category
+  })
+}
 
-# Adding colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
-with(subset(res_spleen, padj<.01 ), 
-     points(log2FoldChange, -log10(pvalue), 
-            pch=20, col="blue"))
+# Looping through each category to create and save volcano plots with padj value < 0.1
+for (i in seq_along(list_of_spleen_results)) {
+  category_name <- resultsNames(dds_spleen)[i]  # Getting the category name
+  result <- list_of_spleen_results[[i]]  # Get results for the current category
+  
+  # Create the volcano plot
+  with(result, {
+    pdf(file.path("plots/", paste("spleen_volcano_", category_name, "_padjvalue<0.1.pdf")), 
+        width = 12, height = 12)  # Opens PDF for the current category
+    
+    plot(log2FoldChange, -log10(padj), 
+         pch = 20, main = paste("Volcano plot for spleen", category_name), 
+         xlim = c(-3, 3))
+    
+    # Adding colored points: blue if padj < 0.1, red if log2FC > 1 and padj < 0.05)
+    points(log2FoldChange, -log10(padj), pch = 20, 
+           col = ifelse(padj < 0.1, "blue", 
+                        ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")))
+    
+    # Customize the legend
+    legend("topright", legend = c("padj < 0.1", "log2FC > 1 & padj < 0.05", "Other"), 
+           col = c("blue", "red", "black"), pch = 20)
+    
+    dev.off()  # Close the PDF for the current category
+  })
+}
 
-with(subset(res_spleen, (padj<.01 & abs(log2FoldChange)>2)),
-     points(log2FoldChange, -log10(pvalue), 
-            pch=20, col="red"))
-
-dev.off()
 
 # PCA plots
-#First we need to transform the raw count data
+#First transform the raw count data
 #vst function performs variance stabilizing transformation
 
-vs_spleen_counts_data <- vst(dds_spleen, blind=FALSE)
 
-pdf("plots/spleen_DTEs_PCA_plot.pdf", width = 12, height = 12)
+# PCAs for the 4 categories
+for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
+  # Performing variance stabilizing transformation (VST) for the current category
+  vs_data_spleen <- vst(dds_spleen, blind = TRUE)
+  
+  # Create the PCA plot
+  pdf_file_name <- paste("plots/", "Spleen_", category_name, "_PCA_plot.pdf", sep = "")
+  pdf(pdf_file_name, width = 12, height = 12)
+  
+  # Plot PCA using ggplot2
+  pca_data_spleen <- plotPCA(vs_data_spleen, intgroup = category_name, returnData = TRUE)
+  
+  # Create the ggplot2 PCA plot and print it
+  pca_plot_spleen <- ggplot(pca_data_spleen, 
+    aes(x = PC1, y = PC2, color = as.factor(get(category_name)))) +
+    geom_point() +
+    labs(title = paste("PCA plot for spleen", category_name), color = category_name) # sets legend name
+  
+  print(pca_plot_spleen)
+  
+  # Close the current PDF file
+  dev.off()
+}
 
-plotPCA(vs_spleen_counts_data, intgroup = "Sex")
-
+# Close the main PDF file
 dev.off()
-
-        # shows how samples group by sex
