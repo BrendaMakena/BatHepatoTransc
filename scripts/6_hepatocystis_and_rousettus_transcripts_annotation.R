@@ -1,13 +1,14 @@
 # annotation of hepatocystis transcripts 
 
 library(rtracklayer)
+library(biomaRt)
 
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
 # loading the dataframe (file containing the read counts) from the features count step
 if(readcount){
-  source("R/1_featurecounts.R")
+  source("scripts/3_featurecounts.R")
 }else{
   tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
 }
@@ -16,7 +17,7 @@ if(readcount){
 #metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
 
 # loading from the metadata script
-source("R/2_metadata.R")
+source("scripts/4_metadata.R")
 
 # Check if the 'metadata' variable exists
 if (exists("metadata")) {
@@ -31,6 +32,22 @@ rousettus_proteins <- read.csv("inputdata/rousettus_proteins.csv")
 
 # the merged gtf file
 merged_gtf <- readGFF("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/RousettusHepatocystis_merged.gtf")
+
+
+biomaRt::listMarts()
+?listMarts
+
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", 
+                dataset = "hsapiens_gene_ensembl")
+
+biomaRt::listDatasets(mart)
+biomaRt::listAttributes(mart)
+# get dataset and GO terms
+go_list <- getBM(attributes=c("go_id"),
+                 filters = "go",
+                 mart=mart)
+
+
 
 # our hepatocystis transcripts with >5 counts
 tagseqRNAfeatureCounts %>% 
