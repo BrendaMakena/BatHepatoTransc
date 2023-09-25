@@ -1,6 +1,8 @@
+# Annotating the DETs for the host and liver
+
 library(biomaRt)
 
-mart <- useMart("ENSEMBL_MART_ENSEMBL",
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL",
                 dataset="hsapiens_gene_ensembl")
 
 
