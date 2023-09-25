@@ -12,6 +12,7 @@ library(dplyr)
 library(apeglm)
 library(VennDiagram)
 library(ggVennDiagram)
+library(gridExtra)
 
 
 # first filter the counts data to keep only host read counts 
@@ -97,19 +98,20 @@ rownames(overlap_matrix) <- colnames(overlap_matrix)
 overlap_matrix
 
 
-# Creating Venn diagrams for all liver DETs in each category
+# Creating Venn diagrams for all liver and spleen DETs in each category
+# side by side
 
-# Define category names (excluding "Intercept")
+# Defining category names (excluding "Intercept")
 category_names <- c("Season(Rainy vs Dry)", 
                     "Age 2category(Young vs Adult)", 
                     "Sex (Male vs Female)", "rpmh scaled")
 
-# Define colors for each category
+# Defining colors for each category
 category_colors <- c("yellow", "green", "red", "purple")
 
 
-# Create Venn diagram for the other four categories
-venn.plot <- venn.diagram(
+# Creating Venn diagram for the liver categories
+venn.plotliver <- venn.diagram(
   x = list_of_DETs[-1],  # Exclude the first category ("Intercept")
   category.names = category_names,
   filename = NULL,
@@ -120,38 +122,42 @@ venn.plot <- venn.diagram(
   main = "Venn diagram of all liver DETs in all categories"
 )
 
-# Saving the Venn diagram as a PDF file
-pdf("plots/Venn_all_DETs_all_categories_liver.pdf", width = 8, height = 8)  # Adjust width and height as needed
-grid.draw(venn.plot)
-dev.off()  # Close the PDF device
-
-
-# venn diagram for all liver DETs with intercept included
-
-# Define category names (excluding "Intercept")
-category_names <- c("Intercept", "Season(Rainy vs Dry)", 
-                    "Age 2category(Young vs Adult)", 
-                    "Sex (Male vs Female)", "rpmh scaled")
-
-# Define colors for each category
-category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
-
-# Create Venn diagram for the other four categories
-venn.plot <- venn.diagram(
-  x = list_of_DETs,
+# Creating Venn diagram for the spleen categories
+venn.plotspleen <- venn.diagram(
+  x = list_of_spleen_DETs[-1],  # Exclude the first category ("Intercept")
   category.names = category_names,
   filename = NULL,
   output = FALSE, # Prevents the creation of log files
   col = category_colors,
   fill = category_colors,
-  annotation.cex = 1.2,  
-  main = "Venn diagram of all liver DETs in all categories with intercept"
+  annotation.cex = 1.2,  # Adjust the font size as needed
+  main = "Venn diagram of all spleen DETs in all categories"
 )
 
 # Saving the Venn diagram as a PDF file
-pdf("plots/Venn_all_DETs_all_categories_with_intercept_liver.pdf", width = 8, height = 8)  # Adjust width and height as needed
-grid.draw(venn.plot)
-dev.off()  # Close the PDF device
+pdf("plots/Venn_all_DETs_all_categories_liver_and_spleen_with_vertical_grid_line.pdf", width = 16, height = 8)
+
+# Creating a layout with two columns
+layout_matrix <- rbind(
+  c(1, 2, 3),  # 1st column, plot 1, 2nd column
+  c(1, 2, 3)   # 1st column, line, 2nd column
+)
+
+# Creating a grid with the line and the plots
+grid.newpage()
+pushViewport(viewport(layout = grid.layout(nrow = 2, ncol = 3, widths = unit(c(5, 1, 5), "null"))))
+
+# Positioning the plots and the line in the grid
+grid.draw(
+  arrangeGrob(venn.plotliver, venn.plotspleen, ncol = 2)
+)
+
+# Drawing a vertical line to separate the plots
+grid.lines(x = unit(0.5, "npc"), y = unit(c(0, 1), "npc"), gp = gpar(lty = 2))
+
+
+dev.off()  # Closing the PDF device
+
 
 # venn diagrams for the top 250 DETs in each of the five categories
 
@@ -248,7 +254,6 @@ for (i in 1:(length(category_names) - 1)) {
 
 
 
-
 # MA plots
         #shows the log2 fold changes attributable to a given variable 
         #over the mean of normalized counts for all the samples in the
@@ -259,18 +264,26 @@ for (i in 1:(length(category_names) - 1)) {
 
 
 # Function to create and save MA plots in DESeq2 style
-create_MA_plot <- function(result, category_name,plots) {
+create_MA_plot_liver <- function(result, category_name,plots) {
   pdf(file.path("plots/", paste(category_name, "_liver_MA_plot.pdf")))
   plotMA(result, ylim = c(-2, 2), main = paste("MA Plot for", category_name))
   dev.off()
 }
 
-# Create and save MA plots for each category using a loop
-for (i in seq_along(list_of_results)) {
+# Opening a PDF device to save multiple MA plots
+pdf("plots/Host_DETs_plots/Host_liver_DETs_plots/liver_MA_plots.pdf", width = 12, height = 12)
+
+
+# Creating and saving MA plots for each category using a loop
+for (i in 2:length(list_of_results)) {
   category_name <- resultsNames(dds_liver)[i]
-  create_MA_plot(list_of_results[[i]], category_name, "plots")
+  plotMA(list_of_results[[i]], 
+      ylim = c(-2, 2), 
+      main = paste("MA Plot for", category_name))
 }
 
+# Closing the PDF device
+dev.off()
 
 # getting the resLFC - Log fold change shrinkage for visualization and ranking
 

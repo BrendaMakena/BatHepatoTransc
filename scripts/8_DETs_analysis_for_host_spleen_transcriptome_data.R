@@ -168,34 +168,6 @@ grid.draw(venn.plotspleen)
 dev.off()  # Close the PDF device
 
 
-# venn diagram for all spleen DETs with intercept included
-
-# Define category names (excluding "Intercept")
-category_names <- c("Intercept", "Season(Rainy vs Dry)", 
-                    "Age 2category(Young vs Adult)", 
-                    "Sex (Male vs Female)", "rpmh scaled")
-
-# Define colors for each category
-category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
-
-# Create Venn diagram for the other four categories
-venn.plotspleen <- venn.diagram(
-  x = list_of_spleen_DETs,
-  category.names = category_names,
-  filename = NULL,
-  output = FALSE, # Prevents the creation of log files
-  col = category_colors,
-  fill = category_colors,
-  annotation.cex = 1.2,  
-  main = "Venn diagram of all spleen DETs in all categories with intercept"
-)
-
-# Saving the Venn diagram as a PDF file
-pdf("plots/Venn_all_DETs_all_categories_with_intercept_spleen.pdf", width = 8, height = 8)
-grid.draw(venn.plotspleen)
-dev.off()  # Close the PDF device
-
-
 # loop for all 5 categories venn diagrams compared pairwise
 
 # Defining category names
@@ -250,12 +222,19 @@ create_MA_plot_spleen <- function(result, category_name,plots) {
   dev.off()
 }
 
+# Opening a PDF device to save multiple MA plots
+pdf("plots/Host_DETs_plots/Host_spleen_DETs_plots/spleen_MA_plots.pdf", width = 12, height = 12)
+
 # Create and save MA plots for each category using a loop
-for (i in seq_along(list_of_spleen_results)) {
+for (i in 2:length(list_of_spleen_results)) { #starts from second category
   category_name <- resultsNames(dds_spleen)[i]
-  create_MA_plot_spleen(list_of_spleen_results[[i]], category_name, "plots")
+  plotMA(list_of_spleen_results[[i]], 
+         ylim = c(-2, 2), 
+         main = paste("MA Plot for", category_name))
 }
 
+# Closing the PDF device
+dev.off()
 
 # getting the resLFC - Log fold change shrinkage for visualization and ranking
 
