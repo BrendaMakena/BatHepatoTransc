@@ -4,7 +4,7 @@
 ## printed to the console
 
 ## Bat GO term transcript annotations are obtained from the ENSEMBLE
-## biomart and stored in an intermediated file 
+## biomart and stored in an intermediated file "intermediateData/GOtermAnnot.RDS"
 
 
 library(rtracklayer)
@@ -14,34 +14,20 @@ library(biomaRt)
 ## intermediate data
 readcount <- FALSE
 
-# loading the dataframe (file containing the read counts) from the features count step
+## loading the dataframe (file containing the read counts) from the features count step
 if(readcount){
   source("scripts/3_featurecounts.R")
 }else{
   tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
 }
 
-# loading metadata file
-#metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
-
-# loading from the metadata script
-source("scripts/4_metadata.R")
-
-# Check if the 'metadata' variable exists
-if (exists("metadata")) {
-  print(metadata)
-} else {
-  print("Metadata variable not found")
-}
-
-# loading the proteins annotations table from ncbi
-hepatocystis_proteins <- read.csv("inputdata/hepatocystis_proteins.csv")
+## loading the proteins annotations table from ncbi
 rousettus_proteins <- read.csv("inputdata/rousettus_proteins.csv")
 
-# the merged gtf file
+## the merged gtf file contains all the information for hepatocystis
 merged_gtf <- readGFF("/SAN/RNASeqHepatoCy/HostTranscriptome/host_merged_Raegyptiacus_and_HepatocystisAunin/STAR/featurescount/RousettusHepatocystis_merged.gtf")
 
-
+## for hepatocystis annotation this is enought, all information is in the gff file
 merged_gtf <- merged_gtf[merged_gtf$gene_id %in% rownames(tagseqRNAfeatureCounts),]
 
 
@@ -113,4 +99,4 @@ allLocusGO <- getBM(mart=mart,
                     filters =  "entrezgene_accession",
                     values = rousettus_proteins$Locus) ###all values in "Locus"
 
-saveRDS(allLocusGO, "intermediateData/GOtermAnnot.RDS")
+asaveRDS(allLocusGO, "intermediateData/GOtermAnnot.RDS")
