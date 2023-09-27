@@ -1,6 +1,7 @@
-# plotting correlation plots for hepatocystis transcriptome intensities between spleen and liver
+### plotting correlation plots for hepatocystis transcriptome
+### intensities between spleen and liver
 
-# loading the libraries
+### loading the libraries
 library(ggplot2)
 library(GGally)
 library(dplyr)
