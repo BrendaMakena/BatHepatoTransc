@@ -3,100 +3,121 @@
 #generalized linear model
 
 # analysis for host liver transcripts  
-BiocManager::install("apeglm")
-install.packages("VennDiagram")
-install.packages("ggVennDiagram")
 library(DESeq2)
 library(ggplot2)
 library(dplyr)
-library(apeglm)
+### library(apeglm)
 library(VennDiagram)
 library(ggVennDiagram)
 library(gridExtra)
+library(magrittr)
 
+redoCounting <- FALSE
+redoMetadata <- FALSE
+
+if(redoCounting){
+    source("scripts/3_featurecounts.R")
+}else{
+    tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
+}
+
+if(redoMetadata){
+    source("scripts/4_metadata.R")
+}else{
+    metadata <- read.csv("intermediateData/metadata_expanded.csv")
+}
+rownames(metadata) <- metadata$ID
+metadata$rpmh_scaled <- metadata$rpmh
 
 # first filter the counts data to keep only host read counts 
 #and > 500 counts across all samples
-host_counts <-tagseqRNAfeatureCounts %>% 
-              filter(!grepl("HEP_",rownames(tagseqRNAfeatureCounts),
-              ignore.case = TRUE),
-              rowSums(tagseqRNAfeatureCounts)>500)
-
-# Filtering metadata to keep only rows for liver samples
-metadata_liver <- metadata %>%
-                  filter(Organ == 'Liver')
-
-# separating host liver from host spleen counts
-# liver host counts
-host_counts_liver <- host_counts[, metadata_liver$ID]
+host_counts <-tagseqRNAfeatureCounts[!grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
+                                     rowSums(tagseqRNAfeatureCounts)>500
+                                    ,]
 
 
-    #### DETs analysis for liver ####
+# For fltering metadata to keep only rows for liver samples
+liverIDs <- metadata$ID[metadata$Organ%in%"Liver"]
+spleenIDs <- metadata$ID[metadata$Organ%in%"Spleen"]
 
 # constructing the DESeqdataset object with rpmh_scaled as condition of test
-dds_liver <- DESeqDataSetFromMatrix(countData = host_counts_liver,
-                              colData = metadata_liver,
+dds_liver <- DESeqDataSetFromMatrix(countData = host_counts[,liverIDs],
+                              colData = metadata[liverIDs,],
                               design = ~Season+Age_2category+Sex+
-                                rpmh_scaled,
+                                  rpmh_scaled,
                               tidy = FALSE)
-
-# viewing the object
-dds_liver
 
 # differential expression analysis (uses wald test statistics)
 dds_liver <- DESeq(dds_liver)
-             # does everything from normalization to linear modeling
-                
-                #estimateSizeFactors
-                #This calculates the relative library depth of each sample 
-                
-                #estimateDispersions
-                #estimates the dispersion of counts for each gene 
-                
-                #nbinomWaldTest
-                #calculates the significance of coefficients in a 
-                #Negative Binomial GLM using the size and dispersion outputs
+
+
+# constructing the DESeqdataset object with rpmh_scaled as condition of test
+dds_spleen <- DESeqDataSetFromMatrix(countData = host_counts[,spleenIDs],
+                              colData = metadata[spleenIDs,],
+                              design = ~Season+Age_2category+Sex+
+                                  rpmh_scaled,
+                              tidy = FALSE)
+
+# differential expression analysis (uses wald test statistics)
+dds_spleen <- DESeq(dds_spleen)
+
 
 # getting the results table
-list_of_results <- lapply(resultsNames(dds_liver), function(n){
+list_of_results_liver  <- lapply(resultsNames(dds_liver), function(n){
       results(dds_liver, name = n)
   })
 
-lapply(list_of_results, head)
+# getting the results table
+list_of_results_spleen  <- lapply(resultsNames(dds_spleen), function(n){
+      results(dds_spleen, name = n)
+})
+
+
 
 # list of transcripts with significant p value for all the conditions
-list_of_DETs <- lapply(list_of_results, function(rdf){
+list_of_DETs_liver  <- lapply(list_of_results_liver, function(rdf){
+          rdf <- rdf[!is.na(rdf$padj),]
+         rownames(rdf[rdf$padj< 0.1,])
+           })
+
+
+# list of transcripts with significant p value for all the conditions
+list_of_DETs_spleen  <- lapply(list_of_results_spleen, function(rdf){
           rdf <- rdf[!is.na(rdf$padj),]
          rownames(rdf[rdf$padj< 0.1,])
            })
 
 # number of DETs for the categories
-lapply(list_of_DETs, length)
-lapply(list_of_DETs, head)
+lapply(list_of_DETs_liver, length)
+
+lapply(list_of_DETs_spleen, length)
 
 
   
-          #### plotting the results ####  
+### Calculating overlaps between the 5 categories
+## Why are you doing this???
 
-
-# Calculating overlaps between the 5 categories
-overlap_matrix <- matrix(0, nrow = length(list_of_DETs), 
-                  ncol = length(list_of_DETs))
-for (i in 1:length(list_of_DETs)) {
-  for (j in 1:length(list_of_DETs)) {
-    if (i != j) {
-      common_genes <- length(intersect(list_of_DETs[[i]], 
-                      list_of_DETs[[j]]))
-      overlap_matrix[i, j] <- common_genes
+getOverlapMatrix <- function(list_of_DETs){
+    overlap_matrix <- matrix(0, nrow = length(list_of_DETs), 
+                             ncol = length(list_of_DETs))
+    for (i in 1:length(list_of_DETs)) {
+        for (j in 1:length(list_of_DETs)) {
+            if (i != j) {
+                common_genes <- length(intersect(list_of_DETs[[i]], 
+                                                 list_of_DETs[[j]]))
+                overlap_matrix[i, j] <- common_genes
+            }
+        }
     }
-  }
+    ## Create a summary table for the DE transcripts overlaps
+    colnames(overlap_matrix) <- c("Intercept", "Season", "Age_2category", "Sex", "rpmh_scaled")
+    rownames(overlap_matrix) <- colnames(overlap_matrix)
+    overlap_matrix
 }
 
-# Create a summary table for the DE transcripts overlaps
-colnames(overlap_matrix) <- c("Intercept", "Season", "Age_2category", "Sex", "rpmh_scaled")
-rownames(overlap_matrix) <- colnames(overlap_matrix)
-overlap_matrix
+overlap_matrix_liver <- getOverlapMatrix(list_of_DETs_liver)
 
+overlap_matrix_spleen <- getOverlapMatrix(list_of_DETs_spleen)
 
 # Creating Venn diagrams for all liver and spleen DETs in each category
 # side by side
@@ -111,6 +132,7 @@ category_colors <- c("yellow", "green", "red", "purple")
 
 
 # Creating Venn diagram for the liver categories
+
 venn.plotliver <- venn.diagram(
   x = list_of_DETs[-1],  # Exclude the first category ("Intercept")
   category.names = category_names,
