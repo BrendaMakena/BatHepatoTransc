@@ -1,17 +1,18 @@
 # loading the metadata file and modifying it to remove replicates and 
 # add new columns for hepatocystis transcriptome intensities
 
-# loading the libraries
+## loading the libraries
 library(pheatmap)
 library(gplots) # for the heatmap.2 function
 library(ggplot2)
 library(GGally)
 library(dplyr)
 library(data.table)
-# rerun script 1 for generating counts table or read from intermediate data
+
+## rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
-# loading the dataframe (file containing the read counts) from the features count step
+## loading the dataframe (file containing the read counts) from the features count step
 if(readcount){
   source("scripts/3_featurecounts.R")
 }else{
@@ -50,26 +51,6 @@ if(!all(colnames(tagseqRNAfeatureCounts) == metadata$ID)){
 metadata$hepatocystis_transcriptome_parasitemia <- colSums(tagseqRNAfeatureCounts[
   grepl("HEP_",rownames(tagseqRNAfeatureCounts)),])
 
-# adding columns for thresholds >2 for hepatocystis transcriptome
-metadata$hepatocystis_transcriptome_parasitemia_2 <- colSums(tagseqRNAfeatureCounts[
-  grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
-  rowSums(tagseqRNAfeatureCounts) >2,])
-
-# adding columns for thresholds >5 for hepatocystis transcriptome
-metadata$hepatocystis_transcriptome_parasitemia_5 <- colSums(tagseqRNAfeatureCounts[
-  grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
-    rowSums(tagseqRNAfeatureCounts) >5,])
-
-# getting the upper quartile threshold for hepatocystis transcriptome
-uQ <- rowSums(tagseqRNAfeatureCounts[
-  grepl("HEP_",rownames(tagseqRNAfeatureCounts)),]) %>%
-  quantile(0.75)
-
-# adding columns for thresholds below upper quartile for hepatocystis transcriptome
-metadata$hepatocystis_transcriptome_parasitemia_uQ <- colSums(tagseqRNAfeatureCounts[
-  grepl("HEP_",rownames(tagseqRNAfeatureCounts)) &
-    rowSums(tagseqRNAfeatureCounts)<uQ ,])
-
 # adding column for sequencing depth for each sample
 metadata$Sequencing_depth <- colSums(tagseqRNAfeatureCounts)
 
@@ -95,4 +76,4 @@ metadata <- metadata %>%
 metadata$rpmh <- metadata$hepatocystis_transcriptome_parasitemia * 
                  metadata$mean_correction_factor 
 
-colnames(metadata)
+write.csv(metadata, "inputdata/metadata_expanded.csv")
