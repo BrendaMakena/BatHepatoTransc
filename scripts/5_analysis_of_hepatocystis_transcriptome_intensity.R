@@ -14,7 +14,7 @@ readcount <- FALSE
 
 # loading the dataframe (file containing the read counts) from the features count step
 if(readcount){
-  source("R/1_featurecounts.R")
+  source("scripts/3_featurecounts.R")
 }else{
   tagseqRNAfeatureCounts <- readRDS("intermediateData/countTable.RDS")
 }
@@ -23,7 +23,7 @@ if(readcount){
 #metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
 
 # loading from the metadata script
-source("R/2_metadata.R")
+source("scripts/4_metadata.R")
 
 # Check if the 'metadata' variable exists
 if (exists("metadata")) {

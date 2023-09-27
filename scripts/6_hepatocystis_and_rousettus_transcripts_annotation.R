@@ -2,7 +2,7 @@
 
 library(rtracklayer)
 library(biomaRt)
-
+ 
 # rerun script 1 for generating counts table or read from intermediate data
 readcount <- FALSE
 
