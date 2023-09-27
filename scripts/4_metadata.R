@@ -76,4 +76,4 @@ metadata <- metadata %>%
 metadata$rpmh <- metadata$hepatocystis_transcriptome_parasitemia * 
                  metadata$mean_correction_factor 
 
-write.csv(metadata, "inputdata/metadata_expanded.csv")
+write.csv(metadata, "intermediateData/metadata_expanded.csv")
