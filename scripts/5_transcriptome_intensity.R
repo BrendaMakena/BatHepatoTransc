@@ -21,10 +21,8 @@ if(readcount){
 }
 
 # loading metadata file
-#metadata <- read.csv("inputdata/tagseqRNA_metadata2023.csv")
+metadata <- read.csv("intermediateData/metadata_expanded.csv")
 
-# loading from the metadata script
-source("scripts/4_metadata.R")
 
 # Check if the 'metadata' variable exists
 if (exists("metadata")) {
@@ -35,7 +33,7 @@ if (exists("metadata")) {
 
 
 
-      #### ggplots for correlation between the transcripts #### 
+#### ggplots for correlation between the transcripts #### 
 
 # Scatter Plot of transcriptome infection estimates coloured by organ
 pdf("plots/scatter_plot_of_transcriptome_infection_estimates_coloured_by_organ.pdf")
