@@ -72,6 +72,8 @@ metadata <- metadata %>%
   )
 
 
+rownames(metadata) <- metadata$ID
+
 # Calculating RPMH values for each feature
 metadata$rpmh <- metadata$hepatocystis_transcriptome_parasitemia * 
                  metadata$mean_correction_factor 
