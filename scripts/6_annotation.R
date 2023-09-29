@@ -99,4 +99,4 @@ allLocusGO <- getBM(mart=mart,
                     filters =  "entrezgene_accession",
                     values = rousettus_proteins$Locus) ###all values in "Locus"
 
-asaveRDS(allLocusGO, "intermediateData/GOtermAnnot.RDS")
+saveRDS(allLocusGO, "intermediateData/GOtermAnnot.RDS")

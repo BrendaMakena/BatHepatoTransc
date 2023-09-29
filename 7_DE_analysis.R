@@ -1,16 +1,23 @@
-# DETs analysis for host liver transcriptome from 3' Tag RNAseqs
-# differential expression tests are based on a negative binomial 
-#generalized linear model
+## DETs analysis for host liver transcriptome from 3' Tag RNAseqs
+## differential expression tests are based on a negative binomial
+##  generalized linear model
 
-# analysis for host liver transcripts  
+## The script will ouput a list of DE genes (only the gene names for
+## now), this could obviously be changed to output/transfer the whole
+## of the results tables to the next script
+
+## analysis for host liver transcripts  
 library(DESeq2)
 library(ggplot2)
 library(dplyr)
-### library(apeglm)
+
 library(VennDiagram)
 library(ggVennDiagram)
 library(gridExtra)
 library(magrittr)
+
+
+## We need the count data and the metadata for the DE analysis
 
 redoCounting <- FALSE
 redoMetadata <- FALSE
@@ -27,7 +34,7 @@ if(redoMetadata){
     metadata <- read.csv("intermediateData/metadata_expanded.csv")
 }
 rownames(metadata) <- metadata$ID
-metadata$rpmh_scaled <- metadata$rpmh
+metadata$rpmh_scaled <- scale(metadata$rpmh)
 
 # first filter the counts data to keep only host read counts 
 #and > 500 counts across all samples
@@ -65,34 +72,32 @@ dds_spleen <- DESeq(dds_spleen)
 # getting the results table
 list_of_results_liver  <- lapply(resultsNames(dds_liver), function(n){
       results(dds_liver, name = n)
-  })
+})
+names(list_of_results_liver) <- paste0("liver:", resultsNames(dds_liver))
 
 # getting the results table
 list_of_results_spleen  <- lapply(resultsNames(dds_spleen), function(n){
-      results(dds_spleen, name = n)
+    results(dds_spleen, name = n)
+})
+names(list_of_results_spleen) <- paste0("spleen:", resultsNames(dds_spleen))
+
+list_of_results <- c(list_of_results_liver, list_of_results_spleen)
+
+
+# list of transcripts with significant p value for all the conditions
+list_of_DETs  <- lapply(list_of_results, function(rdf){
+    rdf <- rdf[!is.na(rdf$padj),]
+    rownames(rdf[rdf$padj< 0.1,])
 })
 
 
+## here the output of the analysis for the pipeline
+DETs_ALL <- c(list_of_DETs, overall=list(rownames(list_of_results[[1]])))
 
-# list of transcripts with significant p value for all the conditions
-list_of_DETs_liver  <- lapply(list_of_results_liver, function(rdf){
-          rdf <- rdf[!is.na(rdf$padj),]
-         rownames(rdf[rdf$padj< 0.1,])
-           })
+saveRDS(DETs_ALL, "intermediateData/DETs_ALL.RDS")
 
 
-# list of transcripts with significant p value for all the conditions
-list_of_DETs_spleen  <- lapply(list_of_results_spleen, function(rdf){
-          rdf <- rdf[!is.na(rdf$padj),]
-         rownames(rdf[rdf$padj< 0.1,])
-           })
-
-# number of DETs for the categories
-lapply(list_of_DETs_liver, length)
-
-lapply(list_of_DETs_spleen, length)
-
-
+### FROM HERE ONLY VISUALISATION (PLOTS) AND TABLES OUPUT
   
 ### Calculating overlaps between the 5 categories
 ## Why are you doing this???
@@ -110,14 +115,25 @@ getOverlapMatrix <- function(list_of_DETs){
         }
     }
     ## Create a summary table for the DE transcripts overlaps
-    colnames(overlap_matrix) <- c("Intercept", "Season", "Age_2category", "Sex", "rpmh_scaled")
+    colnames(overlap_matrix) <- names(list_of_DETs)
     rownames(overlap_matrix) <- colnames(overlap_matrix)
     overlap_matrix
 }
 
-overlap_matrix_liver <- getOverlapMatrix(list_of_DETs_liver)
+getOverlapMatrix(list_of_DETs[grep("liver", names(list_of_DETs))])
 
-overlap_matrix_spleen <- getOverlapMatrix(list_of_DETs_spleen)
+getOverlapMatrix(list_of_DETs[grep("spleen", names(list_of_DETs))])
+
+getOverlapMatrix(list_of_DETs)
+
+
+table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:rpmh_scaled"]],
+      liver=rownames(list_of_results[[1]])%in%list_of_DETs[["liver:rpmh_scaled"]])
+
+chisq.test(table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:rpmh_scaled"]],
+                 liver=rownames(list_of_results[[1]])%in%list_of_DETs[["liver:rpmh_scaled"]]))
+
+
 
 # Creating Venn diagrams for all liver and spleen DETs in each category
 # side by side
