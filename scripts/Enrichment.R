@@ -3,11 +3,23 @@
 
 
 redoCounting <- FALSE
-redoAnnotaoin <- FALSE
+redoAnnotation <- FALSE
 
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+#BiocManager::install("topGO")
+BiocManager::install(c("topGO", "org.Hs.eg.db"))
 
-install.packages("topGO")
+# Checking and installing annotation package if needed
+if (!requireNamespace("org.Hs.eg.db", quietly = TRUE)) {
+  BiocManager::install("org.Hs.eg.db")
+  library(org.Hs.eg.db)
+}
+
+#install.packages("topGO")
+library(biomaRt)
 library(topGO)
+library(org.Hs.eg.db)  # Loads the appropriate organism annotation package (e.g., human)
 
 
 # getting annotation database from ensembl (human genes)
@@ -129,8 +141,11 @@ table(inTransCounts=unique(proteins$Locus)%in%rownames(host_counts),
 #allLocusGO_subset <- allLocusGO[allLocusGO[, 1] %in% list_of_results, ]
 
 # the transcript ids for the individual categories are the rownames
-rownames(list_of_results$Season_Rainy_vs_Dry)
-head(list_of_results$Season_Rainy_vs_Dry)
+rownames(list_of_results_liver$Season_Rainy_vs_Dry)
+rownames(list_of_results_spleen$Season_Rainy_vs_Dry)
+
+lapply(list_of_DETs_liver, head)
+lapply(list_of_DETs_spleen, head)
 
 ?topGO
 
@@ -200,9 +215,287 @@ for (i in 2:length(list_of_results)) {  # Starts from the second element
   liver_GO_results_list[[i - 1]] <- liver_GO_result  # Use (i - 1) as an index to skip the intercept
 }
 
+# liver DETs GO and enrichment analysis
+#liver DETs <- list_of_results  #DETs in the 4 categories
+#liver significant DETs <- list_of_DETs_liver
+# gene-GO mapping data <- allLocusGO
+
+# names of our DETs (not significant DETs)
+geneNames_liver <- featureNames(list_of_results_liver)
+length(geneNames_liver)
+    # 13317
+str(geneNames_liver)
+
+geneList_liver <- factor(as.integer(geneNames_liver %in% 
+                                      list_of_DETs_liver))
+
+# Ensuring there are two levels in the factor
+levels(geneList_liver) <- c("0", "1")
+
+names(geneList_liver) <- geneNames_liver  
+str(geneList_liver) 
+
+# creating the custom annotation function
+custom_annotation_fun_liver <- function(GOdata, allGenes) {
+  # Initializing an empty list to store gene-to-GO-term mappings
+  gene_to_GO_terms_liver <- list()
+  
+  # Looping through each gene in allGenes
+  for (gene in allGenes) {
+    # Extracting the GO terms associated with the current gene
+    terms <- GOdata$go_id[GOdata$entrezgene_accession == gene]
+    
+    # Checking if there are any GO terms for this gene
+    if (length(terms) > 0) {
+      gene_to_GO_terms_liver[[gene]] <- terms
+    }
+  }
+  
+  # Converting the list to a named list
+  gene_to_GO_terms_liver <- lapply(names(gene_to_GO_terms_liver), 
+                              function(gene) {
+    setNames(gene_to_GO_terms_liver[[gene]], gene)
+  })
+  
+  return(gene_to_GO_terms_liver)
+}
+
+# Creating a named vector with gene identifiers and binary indicators
+allGenes_liver <- rep(0, length(geneNames_liver))
+allGenes_liver[geneNames_liver %in% list_of_DETs_liver] <- 1
+names(allGenes_liver) <- geneNames_liver
+str(allGenes_liver)
+
+# Defining a simple gene selection function
+custom_gene_selection_fun <- function(TopGOdata, node) {
+  allGenes <- TopGOdata$allGenes
+  return(allGenes)
+}
+
+# Creating a topGOdata object for the current condition
+liver_godata <- new("topGOdata", 
+                    ontology = "BP",   # for biological process GO branch
+                    allGenes = allGenes_liver, 
+                    nodeSize = 10,
+                    annotationFun = custom_annotation_fun_liver,
+                    geneSelectionFun = custom_gene_selection_fun)
+                    #annot = allLocusGO) # Specifying GO data frame
+                     
+                    
+# Using the custom gene selection function
+# and annotation function
+# allGenes is a vector containing all the gene IDs.
+# nodeSize is the minimum number of genes required to 
+# define a GO term as significant.
+
+# Performing GO enrichment analysis
+liver_GO_result <- runTest(liver_godata, algorithm = "classic", 
+                           statistic = "fisher")
+
+# Storing the results in the list
+liver_GO_results_list[[i - 1]] <- liver_GO_result  # Use (i - 1) as an index to skip the intercept
+
+
+str(allLocusGO)
+
+
+# Creating a custom annotation function
+custom_annotation_fun_liver <- function(GOdata, allGenes) {
+  # Initialize an empty list to store gene-to-GO-term mappings
+  gene_to_GO_terms_liver <- list()
+  
+  # Loop through each gene in allGenes
+  for (gene in names(allGenes)) {
+    # Extract the GO terms associated with the current gene
+    terms <- GOdata$go_id[GOdata$entrezgene_accession == gene]
+    
+    # Checking if there are any GO terms for this gene
+    if (length(terms) > 0) {
+      gene_to_GO_terms_liver[[gene]] <- terms
+    }
+  }
+  
+  # Converting the list to a named list
+  gene_to_GO_terms_liver <- lapply(names(gene_to_GO_terms_liver), 
+                             function(gene) {
+    setNames(gene_to_GO_terms_liver[[gene]], gene)
+  })
+  
+  return(gene_to_GO_terms_liver)
+}
+
+# Defining a simple gene selection function
+custom_gene_selection_fun <- function(TopGOdata, node) {
+  allGenes <- TopGOdata$allGenes
+  return(allGenes)
+}
+
+# Creating a topGOdata object for the current condition
+liver_GOdata <- new("topGOdata", 
+                    ontology = "BP",   # for biological process GO branch
+                    allGenes = allGenes_liver, 
+                    nodeSize = 10,
+                    annotationFun = custom_annotation_fun_liver,
+                    #annot = allLocusGO,
+                    geneSelectionFun = custom_gene_selection_fun)
+library(topGO)
+str(allLocusGO)
+str(allGenes_liver)
+head(allLocusGO)
+
+
+# Load the topGO library if not already loaded
+library(topGO)
+
+# Define your custom annotation function
+custom_annotation_fun_liver <- function(allLocusGO, allGenes) {
+  # Initialize an empty list to store gene-to-GO-term mappings
+  gene_to_GO_terms_liver <- list()
+  
+  # Loop through each gene in allGenes
+  for (gene in names(allGenes)) {
+    # Extract the GO terms associated with the current gene
+    terms <- allLocusGO$go_id[allLocusGO$entrezgene_accession == gene]
+    
+    # Checking if there are any GO terms for this gene
+    if (length(terms) > 0) {
+      gene_to_GO_terms_liver[[gene]] <- terms
+    }
+  }
+  
+  # Converting the list to a named list
+  gene_to_GO_terms_liver <- lapply(names(gene_to_GO_terms_liver), 
+                                   function(gene) {
+                                     setNames(gene_to_GO_terms_liver[[gene]], gene)
+                                   })
+  
+  return(gene_to_GO_terms_liver)
+}
+
+
+custom_liver_gene_selection_fun <- function(allGenes) {
+  return(allGenes)  # Returns all genes without any selection
+}
+
+
+# Creating a topGOdata object for the current condition
+liver_GOdata <- new("topGOdata", 
+                    ontology = "BP",   # for biological process GO branch
+                    allGenes = allGenes_liver, 
+                    nodeSize = 10,
+                    annotationFun = custom_annotation_fun_liver,
+                    geneSelectionFun = custom_liver_gene_selection_fun)
+                    #annot = allLocusGO)
+
+# Check the topGOdata object
+liver_GOdata
 
 
 
 
+# Defining a custom gene selection function
+custom_gene_selection_fun <- function(allGenes, selectedGenes) {
+  selectedGenes <- selectedGenes[selectedGenes %in% names(allGenes)]
+  return(selectedGenes)
+}
+
+
+# Creating a vector of 0s and 1s where 1 indicates the gene is detected
+detected_genes_liver <- as.numeric(names(list_of_results_liver) %in% list_of_DETs_liver)
+
+# Assigning names to the vector using gene names or IDs
+names(detected_genes_liver) <- names(list_of_results_liver)
+
+
+str(detected_genes_liver)
+# Creating the topGOdata object
+liver_GOdata <- new("topGOdata",
+                    ontology = "BP",
+                    allGenes = detected_genes_liver,
+                    geneSel = detected_genes_liver,
+                    annotationFun = allLocusGO,
+                    geneSelectionFun = custom_gene_selection_fun,
+                    mapping = "org.Hs.eg.db"  # Use the appropriate organism annotation package
+)
+
+# Define a custom annotation function
+custom_annotation_fun_liver <- function(allLocusGO, allGenes) {
+  # Initialize an empty list to store gene-to-GO-term mappings
+  gene_to_GO_terms_liver <- list()
+  
+  # Loop through each gene in allGenes
+  for (gene in names(allGenes)) {
+    # Extract the GO terms associated with the current gene
+    terms <- allLocusGO$go_id[allLocusGO$entrezgene_accession == gene]
+    
+    # Checking if there are any GO terms for this gene
+    if (length(terms) > 0) {
+      gene_to_GO_terms_liver[[gene]] <- terms
+    }
+  }
+  
+  # Converting the list to a named list
+  gene_to_GO_terms_liver <- lapply(names(gene_to_GO_terms_liver), 
+                                   function(gene) {
+                                     setNames(gene_to_GO_terms_liver[[gene]], gene)
+                                   })
+  
+  return(gene_to_GO_terms_liver)
+}
+
+# Create a vector of 0s and 1s where 1 indicates the gene is detected
+detected_genes_liver <- as.numeric(names(list_of_results_liver) %in% list_of_DETs_liver)
+
+# Assign names to the vector using gene names or IDs
+names(detected_genes_liver) <- names(list_of_results_liver)
+
+# Create the topGOdata object with the custom annotation function
+liver_GOdata <- new("topGOdata",
+                    ontology = "BP",
+                    allGenes = detected_genes_liver,
+                    geneSel = detected_genes_liver,
+                    annotationFun = custom_annotation_fun_liver,
+                    geneSelectionFun = function(allGenes) allGenes,  # Use all genes without selection
+                    mapping = "org.Hs.eg.db"  # Use the appropriate organism annotation package
+)
+
+# Load the topGO library if not already loaded
+library(topGO)
+
+# Create a named vector of detected genes where 1 indicates detection
+detected_genes_liver <- ifelse(names(list_of_results_liver) %in% list_of_DETs_liver, 1, 0)
+
+# Create the topGOdata object
+liver_GOdata <- new("topGOdata",
+                    ontology = "BP",  # for biological process GO branch
+                    allGenes = detected_genes_liver,
+                    nodeSize = 10,
+                    annot = allLocusGO,
+                    mapping = "org.Hs.eg.db",  # Use the appropriate organism annotation package
+                    ID = "entrezgene_accession"  # Assuming "entrezgene" as the gene identifier
+)
+
+# Creating a named vector of detected genes
+detected_genes_liver <- numeric(length(allLocusGO$entrezgene_accession))
+detected_genes_liver[names(list_of_results_liver) %in% list_of_DETs_liver] <- 1
+names(detected_genes_liver) <- allLocusGO$entrezgene_accession
+
+
+# Defining a custom gene selection function
+custom_gene_selection_fun <- function(allGenes) {
+  return(allGenes)
+}
+
+
+# Creating the topGOdata object
+liver_GOdata <- new("topGOdata",
+                    ontology = "BP",  # for biological process GO branch
+                    allGenes = detected_genes_liver,
+                    nodeSize = 10,
+                    #annot = allLocusGO,
+                    annot = org.Hs.eg.db,  # Use the appropriate organism annotation package
+                    ID = "entrezgene_accession",  # Assuming "entrezgene" as the gene identifier
+                    geneSelectionFun = custom_gene_selection_fun
+)
 
 
