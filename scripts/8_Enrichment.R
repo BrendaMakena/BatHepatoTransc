@@ -5,6 +5,7 @@ library(biomaRt)
 library(topGO)
 library(org.Hs.eg.db)  # Loads the appropriate organism annotation package (e.g., human)
 library(GO.db)
+library(magrittr)
 
 redoDE <- FALSE
 redoAnnotation <- FALSE
@@ -22,100 +23,54 @@ if(redoDE){
   DETs_ALL  <- readRDS("intermediateData/DETs_ALL.RDS")
 }
 
+#### we need a list associating each gene ID with its (potentially
+#### multiple) GO terms. We transform the GO data frame to such a list
+gene2GO <- by(allLocusGO, allLocusGO$entrezgene_accession,
+              function(x) as.character(x$go_id))
 
 
-# getting annotation database from ensembl (human genes)
-#mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL",
-#                dataset="hsapiens_gene_ensembl")
+### This function will compute the enrichment tests for the GO
+### ontology ("MF" = molecular function, "BP" = biological process and
+### "CC" = cellular compartment. allgenes is always our complete set
+### of tested genes and annot always our annotation list
+TOGO.all.onto <- function (ontology, allgenes, gene.set, annot) {
+  g <- factor(as.integer( allgenes%in%gene.set ))
+  names(g) <- allgenes
+  toGO <-  new("topGOdata", ontology = ontology, allGenes = g, annot = annFUN.gene2GO,
+               gene2GO = annot)
+  resultFis <- runTest(toGO, algorithm = "classic", statistic = "fisher")
+  list(toGO, resultFis) ## returns a list first data then result
+}
+
+### now we can loop over the DE gene sets we don't want to run the
+### tests for the intercepts or the
+MF_enrichment <- lapply(DETs_ALL[!grepl("Intercept|overall", names(DETs_ALL))], function (mySet){
+    TOGO.all.onto("MF", DETs_ALL[["overall"]], mySet, gene2GO)
+})
+
+## above I did it only for "MF", but we could also loop over "MF",
+## "BP" and "CC" ;-)
 
 
-
-
-####### try 1
-
-# Removing duplicates from entrezgene_accession
-unique_entrezgene_accession <- unique(allLocusGO$entrezgene_accession)
-
-# Finding the intersection of DETs_ALL and unique_entrezgene_accession
-common_genes <- intersect(DETs_ALL$overall, unique_entrezgene_accession)
-
-# Creating a numeric vector of detected genes where 1 indicates detection
-detected_genes <- numeric(length(unique_entrezgene_accession))
-
-# Marking the detected genes with 1
-detected_genes[common_genes %in% DETs_ALL$overall] <- 1
-
-# Creating the named vector with names as unique_entrezgene_accession
-names(detected_genes) <- unique_entrezgene_accession
-
-########## try 2
-
-# Creating a named vector from the combined list of significant DETs
-detected_genes_named <- as.character(DETs_ALL$overall)
-names(detected_genes_named) <- detected_genes_named
-
-# Creating a named vector with 1 indicating detection
-detected_genes_named[detected_genes_named %in% 
-                       rownames(allLocusGO$entrezgene_accession)] <- "1"
-
-
-######## try 3
-
-# Extracting all significant DETs from the 'overall' list in DETs_ALL
-all_DETs <- DETs_ALL$overall
-
-# Create a named vector with 1 indicating detection
-allGenes <- rep(0, length(allLocusGO$entrezgene_accession))
-names(allGenes) <- allLocusGO$entrezgene_accession
-
-# Mark significant DETs as detected
-allGenes[all_DETs %in% names(allGenes)] <- 1
-
-
-str(allGenes)
-
-# Defining a custom gene selection function
-custom_gene_selection_fun <- function(allGenes) {
-  return(allGenes == 1)
+### now a function to perform correction for multiple testing and to
+### extract a table from the resulst
+gene.table.topGO <- function(TOGO.list, fdr=0.1){
+    all <- GenTable(TOGO.list[[1]], TOGO.list[[2]], topNodes=100)
+    names(all)[names(all)%in%"result1"] <- "p.value"
+    all$fdr <- p.adjust(all$p.value, method="BH")
+    return(all[all$fdr<pval,])
 }
 
 
-########### try 4 
-
-# DETs_ALL is the list of significant genes
-detected_genes <- rep(0, length(allLocusGO$entrezgene_accession))
-detected_genes[names(allLocusGO$entrezgene_accession) %in% 
-                 DETs_ALL$overall] <- 1
-names(detected_genes) <- allLocusGO$entrezgene_accession
-
-str(detected_genes)
-
-# Creating the topGOdata object
-GOdata <- new("topGOdata",
-                    ontology = "BP",  # for biological process GO branch
-                    allGenes = detected_genes,
-                    nodeSize = 10,
-                    annot = allLocusGO,
-                    #annot = org.Hs.eg.db,  # Use the appropriate organism annotation package
-                    #ID = "entrezgene_accession",  # Assuming "entrezgene" as the gene identifier
-                    geneSelectionFun = function(k) k == 1)  # Custom gene selection function
+### and run it along the list of Enrichment results
+MF_enrichment_tables <- lapply(MF_enrichment, gene.table.topGO)
 
 
-str(DETs_ALL)
+lapply(MF_enrichment_tables, head)
 
+MF_enrichment_tables["spleen:rpmh_scaled"]
 
-if ("topGO" %in% installed.packages()) {
-  detach("package:topGO", unload = TRUE)
-  remove.packages("topGO")
-}
-
-install.packages("topGO")
-
-
-library(AnnotationDbi)
-library(topGO)
-
-
+MF_enrichment_tables["liver:rpmh_scaled"]
 
 
 
