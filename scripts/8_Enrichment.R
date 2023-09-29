@@ -73,4 +73,21 @@ MF_enrichment_tables["spleen:rpmh_scaled"]
 MF_enrichment_tables["liver:rpmh_scaled"]
 
 
+## let's do one test for the intersection of liver and spleen rpmh_scaled
 
+TOGO.all.onto("MF", DETs_ALL[["overall"]],
+              intersect(DETs_ALL[["liver:rpmh_scaled"]], DETs_ALL[["spleen:rpmh_scaled"]]),
+              gene2GO) %>% gene.table.topGO()
+
+## ##       GO.ID                                        Term Annotated Significant Expected p.value        fdr
+## ## 1  GO:0070325       lipoprotein particle receptor binding        25           4     0.25 0.00011 0.01050000
+## ## 2  GO:0005198                structural molecule activity       459          14     4.63 0.00021 0.01050000
+## ## 3  GO:0050750 low-density lipoprotein particle recepto...        21           3     0.21 0.00117 0.03228571
+## ## 4  GO:0005518                            collagen binding        50           4     0.50 0.00159 0.03228571
+## ## 5  GO:0043394                        proteoglycan binding        24           3     0.24 0.00174 0.03228571
+## ## 6  GO:0008307            structural constituent of muscle        26           3     0.26 0.00220 0.03228571
+## ## 7  GO:0001540                        amyloid-beta binding        55           4     0.56 0.00226 0.03228571
+## ## 8  GO:0004385                   guanylate kinase activity         8           2     0.08 0.00272 0.03400000
+## ## 9  GO:0042277                             peptide binding       162           6     1.64 0.00592 0.04011538
+## ## 10 GO:1901681                     sulfur compound binding       168           6     1.70 0.00704 0.04011538
+## ## > 
