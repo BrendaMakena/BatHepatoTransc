@@ -17,9 +17,10 @@ if(redoAnnotation){
 }
 
 if(redoDE){
-    source("scripts/3_featurecounts.R")
+    source("scripts/DE_analysis.R")
 } else {
-    
+    "intermediateData/DETs_ALL.RDS"
+}
 
 
 
