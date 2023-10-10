@@ -1,12 +1,12 @@
 ## DETs analysis for host liver transcriptome from 3' Tag RNAseqs
 ## differential expression tests are based on a negative binomial
-##  generalized linear model
+## generalized linear model
 
 ## The script will ouput a list of DE genes (only the gene names for
 ## now), this could obviously be changed to output/transfer the whole
 ## of the results tables to the next script
 
-## analysis for host liver transcripts  
+## analysis for host liver and spleen transcripts  
 library(DESeq2)
 library(ggplot2)
 library(dplyr)
@@ -43,11 +43,11 @@ host_counts <-tagseqRNAfeatureCounts[!grepl("HEP_",rownames(tagseqRNAfeatureCoun
                                     ,]
 
 
-# For fltering metadata to keep only rows for liver samples
+# Fltering metadata to separate rows for liver and spleen samples
 liverIDs <- metadata$ID[metadata$Organ%in%"Liver"]
 spleenIDs <- metadata$ID[metadata$Organ%in%"Spleen"]
 
-# constructing the DESeqdataset object with rpmh_scaled as condition of test
+# constructing the liver DESeqdataset object with rpmh_scaled as condition of test
 dds_liver <- DESeqDataSetFromMatrix(countData = host_counts[,liverIDs],
                               colData = metadata[liverIDs,],
                               design = ~Season+Age_2category+Sex+
@@ -58,7 +58,7 @@ dds_liver <- DESeqDataSetFromMatrix(countData = host_counts[,liverIDs],
 dds_liver <- DESeq(dds_liver)
 
 
-# constructing the DESeqdataset object with rpmh_scaled as condition of test
+# constructing the spleen DESeqdataset object with rpmh_scaled as condition of test
 dds_spleen <- DESeqDataSetFromMatrix(countData = host_counts[,spleenIDs],
                               colData = metadata[spleenIDs,],
                               design = ~Season+Age_2category+Sex+
@@ -69,18 +69,19 @@ dds_spleen <- DESeqDataSetFromMatrix(countData = host_counts[,spleenIDs],
 dds_spleen <- DESeq(dds_spleen)
 
 
-# getting the results table
+# getting the results table for liver DETs
 list_of_results_liver  <- lapply(resultsNames(dds_liver), function(n){
       results(dds_liver, name = n)
 })
 names(list_of_results_liver) <- paste0("liver:", resultsNames(dds_liver))
 
-# getting the results table
+# getting the results table for spleen DETs
 list_of_results_spleen  <- lapply(resultsNames(dds_spleen), function(n){
     results(dds_spleen, name = n)
 })
 names(list_of_results_spleen) <- paste0("spleen:", resultsNames(dds_spleen))
 
+## combined liver and spleen list of DETs results
 list_of_results <- c(list_of_results_liver, list_of_results_spleen)
 
 
@@ -90,17 +91,38 @@ list_of_DETs  <- lapply(list_of_results, function(rdf){
     rownames(rdf[rdf$padj< 0.1,])
 })
 
+# list of liver transcripts with significant p value for all the conditions
+list_of_liver_DETs  <- lapply(list_of_results_liver, function(rdf){
+  rdf <- rdf[!is.na(rdf$padj),]
+  rownames(rdf[rdf$padj< 0.1,])
+})
+
+# list of transcripts with significant p value for all the conditions
+list_of_spleen_DETs  <- lapply(list_of_results_spleen, function(rdf){
+  rdf <- rdf[!is.na(rdf$padj),]
+  rownames(rdf[rdf$padj< 0.1,])
+})
+
 
 ## here the output of the analysis for the pipeline
 DETs_ALL <- c(list_of_DETs, overall=list(rownames(list_of_results[[1]])))
 
+DETs_liver <- c(list_of_liver_DETs, overall=list(rownames(list_of_results_liver[[1]])))
+
+DETs_spleen <- c(list_of_spleen_DETs, overall=list(rownames(list_of_results_spleen[[1]])))
+
+
 saveRDS(DETs_ALL, "intermediateData/DETs_ALL.RDS")
+saveRDS(DETs_liver, "intermediateData/DETs_liver.RDS")
+saveRDS(DETs_spleen, "intermediateData/DETs_spleen.RDS")
+
 
 
 ### FROM HERE ONLY VISUALISATION (PLOTS) AND TABLES OUPUT
   
 ### Calculating overlaps between the 5 categories
-## Why are you doing this???
+## doing this to get a table for pairwise comparison of the categories
+## could be a substitute for venn diagrams
 
 getOverlapMatrix <- function(list_of_DETs){
     overlap_matrix <- matrix(0, nrow = length(list_of_DETs), 
@@ -126,13 +148,15 @@ getOverlapMatrix(list_of_DETs[grep("spleen", names(list_of_DETs))])
 
 getOverlapMatrix(list_of_DETs)
 
-
+## overlap table of liver vs spleen rpmh scaled categories
 table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:rpmh_scaled"]],
       liver=rownames(list_of_results[[1]])%in%list_of_DETs[["liver:rpmh_scaled"]])
 
+## the 133 DETs overlapping between liver vs spleen rpmh scaled category are statistically significant
 chisq.test(table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:rpmh_scaled"]],
                  liver=rownames(list_of_results[[1]])%in%list_of_DETs[["liver:rpmh_scaled"]]))
-
+                      
+                      # X-squared = 106.06, df = 1, p-value < 2.2e-16
 
 
 # Creating Venn diagrams for all liver and spleen DETs in each category
@@ -150,7 +174,7 @@ category_colors <- c("yellow", "green", "red", "purple")
 # Creating Venn diagram for the liver categories
 
 venn.plotliver <- venn.diagram(
-  x = list_of_DETs[-1],  # Exclude the first category ("Intercept")
+  x = list_of_liver_DETs[-1],  # Exclude the first category ("Intercept")
   category.names = category_names,
   filename = NULL,
   output = FALSE, # Prevents the creation of log files
@@ -183,7 +207,8 @@ layout_matrix <- rbind(
 
 # Creating a grid with the line and the plots
 grid.newpage()
-pushViewport(viewport(layout = grid.layout(nrow = 2, ncol = 3, widths = unit(c(5, 1, 5), "null"))))
+pushViewport(viewport(layout = grid.layout(nrow = 2, ncol = 3, 
+                              widths = unit(c(5, 1, 5), "null"))))
 
 # Positioning the plots and the line in the grid
 grid.draw(
@@ -197,98 +222,125 @@ grid.lines(x = unit(0.5, "npc"), y = unit(c(0, 1), "npc"), gp = gpar(lty = 2))
 dev.off()  # Closing the PDF device
 
 
-# venn diagrams for the top 250 DETs in each of the five categories
-
-# Extracting the top 250 DETs from each category
-top_250_DETs_list <- lapply(list_of_DETs, 
-                     function(det_list) head(det_list, 250))
-
-# Creating Venn diagrams
-venn.plot <- venn.diagram(
-  x = top_250_DETs_list,
-  category.names = c("Intercept", "Season(Rainy vs Dry) ", 
-                     "Age 2category(Young vs Adult)", 
-                     "Sex (Male vs Female)", "rpmh scaled"),
-  filename = NULL,  
-  output = TRUE,
-  col = c("dodgerblue", "yellow", "green", "red", "purple"), # Specifies the edge colors
-  fill = c("dodgerblue", "yellow", "green", "red", "purple"), # Specifies the fill colors
-  annotation.cex = 1.2,
-  main = "Top 250 liver DETs"
-)
-
-# Saving the Venn diagram as a pdf file
-pdf("plots/Top_250_DETs_Venn_diagram_liver.pdf", width = 8, height = 8)
-grid.draw(venn.plot)
-dev.off()  # Close the pdf file
-
-
 # venn diagram of eg only two of the 5 categories
-# after line 115 choose the categories to include in the Venn diagram
-selected_categories <- c("Season(Rainy vs Dry)", "rpmh scaled")
-
-# Creating Venn diagrams for the selected categories
-selected_DETs <- top_250_DETs_list[c("Intercept", "Season(Rainy vs Dry)", 
-                                     "Age 2category(Young vs Adult)", 
-                                     "Sex (Male vs Female)", "rpmh scaled") %in% selected_categories]
-
-venn.plot <- venn.diagram(
-  x = selected_DETs,
-  category.names = selected_categories,
-  filename = NULL,
-  output = TRUE,
-  col = c("dodgerblue", "yellow", "green", "red", "purple")[c("Intercept", "Season(Rainy vs Dry)", 
-                                                              "Age 2category(Young vs Adult)", 
-                                                              "Sex (Male vs Female)", "rpmh scaled") %in% selected_categories],
-  fill = c("dodgerblue", "yellow", "green", "red", "purple")[c("Intercept", "Season(Rainy vs Dry)", 
-                                                               "Age 2category(Young vs Adult)", 
-                                                               "Sex (Male vs Female)", "rpmh scaled") %in% selected_categories],
-  annotation.cex = 1.2,
-  main = "liver season vs rpmh scaled"
-)
-
-# Saving the Venn diagram as a PDF file
-pdf("plots/Season_vs_rpmh_scaled_Venn_diagram_liver.pdf", width = 8, height = 8)
-grid.draw(venn.plot)
-dev.off()  # Close the PDF file
-
 
 # loop for all 5 categories venn diagrams compared pairwise
 
 # Defining category names
-category_names <- c("Intercept", "Season(Rainy vs Dry)", 
+category_names <- c("Season(Rainy vs Dry)", 
                     "Age 2category(Young vs Adult)", 
                     "Sex (Male vs Female)", "rpmh scaled")
 
 # Defining colors for each category
-category_colors <- c("dodgerblue", "yellow", "green", "red", "purple")
+category_colors <- c("yellow", "green", "red", "purple")
 
-# Creating Venn diagrams for all pairs of categories using all DETs
-for (i in 1:(length(category_names) - 1)) {
-  for (j in (i + 1):length(category_names)) {
+
+## loop for liver categories 
+
+# Saving the Venn diagram as a PDF file
+pdf("plots/Host_DETs_plots/Host_liver_DETs_plots/Venn_pairwise_categories_liver.pdf", 
+    width = 8, height = 8)
+
+## Creating liver Venn diagrams for all pairs of categories using all DETs
+for (i in 1:(length(category_names))) {
+  for (j in 1:length(category_names)) {
     cat1 <- category_names[i]
     cat2 <- category_names[j]
     
     # Select all DETs for the two categories
-    selected_DETs <- list_of_DETs[category_names %in% c(cat1, cat2)]
+    selected_liver_DETs <- list(cat1 = list_of_liver_DETs[[i]],
+                          cat2 = list_of_liver_DETs[[j]]) 
     
     # Creating Venn diagram for the pair of categories
-    venn.plot <- venn.diagram(
-      x = selected_DETs,
+    venn.plotliver <- venn.diagram(
+      x = selected_liver_DETs,
       category.names = c(cat1, cat2),
       filename = NULL,
       output = FALSE,  # Prevents the creation of log files
       col = category_colors[category_names %in% c(cat1, cat2)],
       fill = category_colors[category_names %in% c(cat1, cat2)],
-      annotation.cex = 1.2  # Adjust the font size as needed
+      annotation.cex = 1.2,
+      main = paste("Venn Diagram liver:", cat1, "vs", cat2)
     )
     
-    # Saving the Venn diagram as a PDF file
-    pdf(paste0("plots/Venn_", cat1, "_vs_", cat2, "_liver.pdf"), width = 8, height = 8)  # Adjust width and height as needed
-    grid.draw(venn.plot)
-    dev.off()  # Close the PDF device
+    # Creating a new page in the PDF for each Venn diagram
+    if (i != 1 || j != 1) {
+      cat("PageBreak\n", file = "plots/Host_DETs_plots/Host_liver_DETs_plots/Venn_pairwise_categories_liver.pdf", append = TRUE)
+    }
+    
+    # Drawing the Venn diagram on the PDF device
+    grid.newpage()
+    grid.draw(venn.plotliver)
+    
+    }
+}
+
+## closing the PDF and saving the combined Venn diagrams PDF
+dev.off()
+
+## loop for spleen categories
+
+# Saving the Venn diagram as a PDF file
+pdf("plots/Host_DETs_plots/Host_spleen_DETs_plots/Venn_pairwise_categories_spleen.pdf", 
+    width = 8, height = 8)
+
+
+## loop for spleen Venn diagrams for all pairs of categories using all DETs
+for (i in 1:(length(category_names))) {
+  for (j in 1:length(category_names)) {
+    cat1 <- category_names[i]
+    cat2 <- category_names[j]
+    
+    # Select all DETs for the two categories
+    selected_spleen_DETs <- list(cat1 = list_of_spleen_DETs[[i]],
+                          cat2 = list_of_spleen_DETs[[j]]) 
+    
+    # Creating Venn diagram for the pair of categories
+    venn.plotspleen <- venn.diagram(
+      x = selected_spleen_DETs,
+      category.names = c(cat1, cat2),
+      filename = NULL,
+      output = FALSE,  # Prevents the creation of log files
+      col = category_colors[category_names %in% c(cat1, cat2)],
+      fill = category_colors[category_names %in% c(cat1, cat2)],
+      annotation.cex = 1.2,
+      main = paste("Venn Diagram spleen:", cat1, "vs", cat2)
+    )
+    
+    # Creating a new page in the PDF for each Venn diagram
+    if (i != 1 || j != 1) {
+      cat("PageBreak\n", file = "plots/Host_DETs_plots/Host_spleen_DETs_plots/Venn_pairwise_categories_spleen.pdf", append = TRUE)
+    }
+    
+    # Drawing the Venn diagram on the PDF device
+    grid.newpage()
+    grid.draw(venn.plotspleen)
   }
 }
+
+# Closing the PDF device to save the combined Venn diagrams PDF
+dev.off()
+
+
+
+# Creating Venn diagram for the liver vs spleen rpmh scaled category
+venn.plotliver_vs_spleen_rpmh_scaled <- venn.diagram(
+  x = list(liver = list_of_liver_DETs[["liver:rpmh_scaled"]],
+           spleen = list_of_spleen_DETs[["spleen:rpmh_scaled"]]),
+  category.names = c("liver", "spleen"),
+  filename = NULL,
+  output = FALSE, # Prevents the creation of log files
+  col = "gold",
+  fill = "gold",
+  annotation.cex = 1.2,  # Adjust the font size as needed
+  main = "Venn diagram of liver vs spleen DETs rpmh scaled"
+)
+
+# Saving the Venn diagram as a PDF file
+pdf(paste0("plots/Venn_liver_vs_spleen_rpmh_scaled.pdf"), width = 8, height = 8)
+grid.draw(venn.plotliver_vs_spleen_rpmh_scaled)
+dev.off()  # Close the PDF device
+
 
 
 
@@ -300,49 +352,49 @@ for (i in 1:(length(category_names) - 1)) {
         #Points which fall out of the window are plotted as open 
         #triangles pointing either up or down.
 
-
-# Function to create and save MA plots in DESeq2 style
-create_MA_plot_liver <- function(result, category_name,plots) {
-  pdf(file.path("plots/", paste(category_name, "_liver_MA_plot.pdf")))
-  plotMA(result, ylim = c(-2, 2), main = paste("MA Plot for", category_name))
-  dev.off()
-}
+## MA plots for liver DETs
 
 # Opening a PDF device to save multiple MA plots
 pdf("plots/Host_DETs_plots/Host_liver_DETs_plots/liver_MA_plots.pdf", width = 12, height = 12)
 
-
 # Creating and saving MA plots for each category using a loop
-for (i in 2:length(list_of_results)) {
+for (i in 2:length(list_of_results_liver)) {
   category_name <- resultsNames(dds_liver)[i]
-  plotMA(list_of_results[[i]], 
+  plotMA(list_of_results_liver[[i]], 
       ylim = c(-2, 2), 
-      main = paste("MA Plot for", category_name))
+      main = paste("MA Plot for liver", category_name))
 }
 
 # Closing the PDF device
 dev.off()
 
-# getting the resLFC - Log fold change shrinkage for visualization and ranking
+## MA plots for spleen DETs
 
-# name of coefficient to shrink for only one category
+# Opening a PDF device to save multiple MA plots
+pdf("plots/Host_DETs_plots/Host_spleen_DETs_plots/spleen_MA_plots.pdf", width = 12, height = 12)
+
+# Creating and saving MA plots for each category using a loop
+for (i in 2:length(list_of_results_spleen)) {
+  category_name <- resultsNames(dds_spleen)[i]
+  plotMA(list_of_results_spleen[[i]], 
+         ylim = c(-2, 2), 
+         main = paste("MA Plot for spleen", category_name))
+}
+
+# Closing the PDF device
+dev.off()
+
+
+## getting the liver resLFC - Log fold change shrinkage for visualization and ranking
+
+# name of coefficient to shrink for the categories
 resultsNames(dds_liver)
-
-res_liver_LFC <- lfcShrink(dds_liver, coef = "Sex_Male_vs_Female",
-                           type = "apeglm")
-res_liver_LFC
-
+resultsNames(dds_spleen)
        # It is more useful visualize the MA-plot for the shrunken log2 fold 
        # changes, which remove the noise associated with log2 fold changes 
        # from low count genes without requiring arbitrary filtering thresholds.
 
-# plotting the LFC for the one category
-pdf("plots/liver_LFC_DTEs_sex_MA_plot.pdf", width = 12, height = 12)
-plotMA(res_liver_LFC, ylim = c(-2, 2))
-dev.off()
-
-
-# plotting the LFC for all my 4 categories
+# plotting the LFC for all my 4 liver categories
 
 # Mapping between category names and coefficient names
 category_coefficients <- c(
@@ -351,6 +403,10 @@ category_coefficients <- c(
   "Sex (Male vs Female)" = "Sex_Male_vs_Female",
   "rpmh scaled" = "rpmh_scaled"
 )
+
+## opening pdf file and setting path
+pdf(file.path("plots/Host_DETs_plots/Host_liver_DETs_plots/All_liver_LFC_MA_plot.pdf"), 
+    width = 12, height = 12)
 
 # Looping through each category to create and save MA plots
 for (category_name in names(category_coefficients)) {
@@ -363,157 +419,66 @@ for (category_name in names(category_coefficients)) {
                      type = "apeglm")
     
     # Creating the MA plot
-    pdf(file.path("plots/", paste("liver_LFC_", 
-                                  category_name, "_MA_plot.pdf")), 
-        width = 12, height = 12)
     plotMA(res_liver_LFC, ylim = c(-2, 2), 
            main = paste("Liver LFC MA Plot for category", category_name))
-    dev.off()
+   } else {
+    cat("Coefficient", coef_name, "not found in DESeq results.\n")
+  }
+}
+  
+## Closing the PDF device
+dev.off()
+
+
+## plotting the LFC for all my 4 spleen categories
+
+## opening pdf file and setting path
+pdf(file.path("plots/Host_DETs_plots/Host_spleen_DETs_plots/All_spleen_LFC_MA_plot.pdf"), 
+    width = 12, height = 12)
+
+# Looping through each category to create and save MA plots
+for (category_name in names(category_coefficients)) {
+  coef_name <- category_coefficients[category_name]
+  
+  # Check if the coefficient name exists in resultsNamesDDS
+  if (coef_name %in% resultsNames(dds_spleen)) {
+    # Calculating resLFC for the given category
+    res_spleen_LFC <- lfcShrink(dds_spleen, coef = coef_name, 
+                               type = "apeglm")
+    
+    # Creating the MA plot
+    plotMA(res_spleen_LFC, ylim = c(-2, 2), 
+           main = paste("Spleen LFC MA Plot for category", category_name))
   } else {
     cat("Coefficient", coef_name, "not found in DESeq results.\n")
   }
 }
 
-
-# Plot counts
-        # plotCounts function compares the normalized counts between the comparison groups,
-        # sex Male vs female, for the genes
-
-# plotting transcript with lowest padjusted value from results table
-pdf("plots/liver_DTEs_plotcounts_for_min_padjvalue_transcript.pdf", 
-    width = 12, height = 12)
-
-plotCounts(dds_liver, gene=which.min(res_liver$padj), 
-           intgroup="Sex")
-
+## Closing the PDF device
 dev.off()
 
-#alternatively plotting using ggplot2
-pdf("plots/liver_DTEs_plotcounts_for_min_padjvalue2_transcript.pdf", width = 12, height = 12)
-
-ggplot(plotCounts(dds_liver, gene=which.min(res_liver$padj), 
-                  intgroup="Sex", returnData = TRUE), 
-       aes(x=Sex, y=count)) + 
-  geom_point(position=position_jitter(w=0.1,h=0)) + 
-  scale_y_log10(breaks=c(25,100,400))
-
-dev.off()
-
-# plot counts for my 5 categories in a loop
-# Looping through each category and creating and saving ggplot2-based count plots
-for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
-  # Create a list to store data for all genes in the category
-  gene_data_list <- list()
-  
-  # Loop through genes and create ggplot2 plots for each
-  all_genes <- rownames(dds_liver)
-  for (gene in all_genes) {
-    # Subset the data for the specific gene and create the ggplot2 plot
-    gene_data <- plotCounts(dds_liver, gene = gene, 
-                 intgroup =  category_name, returnData = TRUE)
-    
-    gene_data_list[[gene]] <- gene_data
-  }
-  
-  # Save ggplot2-based count plots for all genes in the category
-  pdf(file.path("plots/", paste("liver_DTEs_plotcounts_for_", category_name, "_transcripts.pdf")), 
-      width = 12, height = 12)
-  
-  # Plot all genes in the category
-  for (gene in all_genes) {
-    ggplot(gene_data_list[[gene]], aes(x = .data[[category_name]], y = count)) + 
-      geom_point(position = position_jitter(w = 0.1, h = 0)) + 
-      scale_y_log10(breaks = c(25, 100, 400))
-  }
-  
-  dev.off()
-}
+      ###using 'apeglm' for LFC shrinkage. If used in published research, please cite:
+        #Zhu, A., Ibrahim, J.G., Love, M.I. (2018) Heavy-tailed prior distributions for
+        #sequence count data: removing the noise and preserving large differences.
+        #Bioinformatics. https://doi.org/10.1093/bioinformatics/bty895
 
 
-# Iterate through category names
-for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
-  # Create a list to store data for all genes in the category
-  gene_data_list <- list()
-  
-  # Loop through DETs and create ggplot2 plots for each
-  for (gene in list_of_DETs[[i]]) {
-    # Subset the data for the specific DET and create the ggplot2 plot
-    gene_data <- plotCounts(dds_liver, gene = gene, 
-                            intgroup = category_name, returnData = TRUE)
-    
-    gene_data_list[[gene]] <- gene_data
-  }
-  
-  # Save ggplot2-based count plots for DETs in the category
-  pdf(file.path("plots/", paste("liver_DETs_plotcounts_for_", category_name, "_transcripts.pdf")), 
-      width = 12, height = 12)
-  
-  # Plot all DETs in the category
-  for (gene in list_of_DETs[[i]]) {
-    ggplot(gene_data_list[[gene]], aes(x = category_name, y = count)) + 
-      geom_point(position = position_jitter(w = 0.1, h = 0)) + 
-      scale_y_log10(breaks = c(25, 100, 400))
-  }
-  
-  dev.off()
-}
 
-# Iterate through category names
-for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
-  # Create a list to store data for all genes in the category
-  gene_data_list <- list()
-  
-  # Loop through DETs and create ggplot2 plots for each
-  for (gene in list_of_DETs[[category_name]]) {
-    # Subset the data for the specific DET and create the ggplot2 plot
-    gene_data <- plotCounts(dds_liver, gene = gene, 
-                            intgroup = category_name, returnData = TRUE)
-    
-    gene_data_list[[gene]] <- gene_data
-  }
-  
-  # Save ggplot2-based count plots for DETs in the category
-  pdf(file.path("plots/", paste("liver_DETs_plot_counts_for_", category_name, "_transcripts.pdf")), 
-      width = 12, height = 12)
-  
-  # Plot all DETs in the category
-  for (gene in list_of_DETs[[category_name]]) {
-    p <- ggplot(gene_data_list[[gene]], aes(x = .data[[category_name]], y = count)) + 
-      geom_point(position = position_jitter(w = 0.1, h = 0)) + 
-      scale_y_log10(breaks = c(25, 100, 400))
-    
-    print(p)  # Print the plot to generate and save it
-  }
-  
-  dev.off()
-}
+### volcano plots
 
+## liver volcano plots
+# Opening PDF and defining path
+pdf(file.path("plots/Host_DETs_plots/Host_liver_DETs_plots/liver_volcano_padjvalue<0.01.pdf"), 
+    width = 12, height = 12)  
 
-# alternatively plotting the counts for individual transcripts
-pdf("plots/liver_DTEs_plotcounts_for_LOC107508184_transcript.pdf", width = 12, height = 12)
-
-plotCounts(dds_liver, gene = "LOC107508184", intgroup = "Sex" )
-
-dev.off()
-
-# getting information on variables and tests used 
-mcols(res_liver)$description
-
-
-# volcano plots
-
-# volcano plots for all categories with padjvalue<0.01
-
-for (i in seq_along(list_of_results)) {
+# volcano plots for all liver categories with padjvalue<0.01
+for (i in 2:length(list_of_results_liver)) {
   category_name <- resultsNames(dds_liver)[i]  # Getting the category name
-  result <- list_of_results[[i]]  # Get results for the current category
+  result <- list_of_results_liver[[i]]  # Get results for the current category
   
   # Create the volcano plot
   with(result, {
-    pdf(file.path("plots/", paste("liver_volcano_", category_name, "_padjvalue<0.01.pdf")), 
-        width = 12, height = 12)  # Opens PDF for the current category
-    
-    plot(log2FoldChange, -log10(padj), 
+        plot(log2FoldChange, -log10(padj), 
          pch = 20, main = paste("Volcano plot for liver", category_name), 
          xlim = c(-3, 3))
     
@@ -525,25 +490,26 @@ for (i in seq_along(list_of_results)) {
     # Customize the legend
     legend("topright", legend = c("padj < 0.01", "log2FC > 1 & padj < 0.05", "Other"), 
            col = c("blue", "red", "black"), pch = 20)
-    
-    dev.off()  # Close the PDF for the current category
-  })
+    })
 }
 
 # Save the PDF file
 dev.off()
 
 
-# plotting the 5 categories with padjvalue of 0.1 instead of 0.01
-for (i in seq_along(list_of_results)) {
+# plotting the 4 categories with padjvalue of 0.1 instead of 0.01
+
+# Opening PDF and defining path
+pdf(file.path("plots/Host_DETs_plots/Host_liver_DETs_plots/liver_volcano_padjvalue<0.1.pdf"), 
+    width = 12, height = 12)  
+
+
+for (i in 2:length(list_of_results_liver)) {
   category_name <- resultsNames(dds_liver)[i]  # Getting the category name
-  result <- list_of_results[[i]]  # Get results for the current category
+  result <- list_of_results_liver[[i]]  # Get results for the current category
   
   # Create the volcano plot
   with(result, {
-    pdf(file.path("plots/", paste("liver_volcano_", category_name, "_padjvalue<0.1.pdf")), 
-        width = 12, height = 12)  # Opens PDF for the current category
-    
     plot(log2FoldChange, -log10(padj), 
          pch = 20, main = paste("Volcano plot for liver", category_name), 
          xlim = c(-3, 3))
@@ -556,25 +522,96 @@ for (i in seq_along(list_of_results)) {
     # Customize the legend
     legend("topright", legend = c("padj < 0.1", "log2FC > 1 & padj < 0.05", "Other"), 
            col = c("blue", "red", "black"), pch = 20)
-    
-    dev.off()  # Close the PDF for the current category
   })
 }
 
+# Closing the PDF
+dev.off() 
 
-# PCA plots
+
+## spleen volcano plots
+
+# Opening PDF and defining path
+pdf(file.path("plots/Host_DETs_plots/Host_spleen_DETs_plots/spleen_volcano_padjvalue<0.01.pdf"), 
+    width = 12, height = 12)  
+
+# volcano plots for all liver categories with padjvalue<0.01
+for (i in 2:length(list_of_results_spleen)) {
+  category_name <- resultsNames(dds_spleen)[i]  # Getting the category name
+  result <- list_of_results_spleen[[i]]  # Get results for the current category
+  
+  # Create the volcano plot
+  with(result, {
+    plot(log2FoldChange, -log10(padj), 
+         pch = 20, main = paste("Volcano plot for spleen", category_name), 
+         xlim = c(-3, 3))
+    
+    # Adding colored points: blue if padj < 0.01, red if log2FC > 1 and padj < 0.05)
+    points(log2FoldChange, -log10(padj), pch = 20, 
+           col = ifelse(padj < 0.01, "blue", 
+                        ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")))
+    
+    # Customize the legend
+    legend("topright", legend = c("padj < 0.01", "log2FC > 1 & padj < 0.05", "Other"), 
+           col = c("blue", "red", "black"), pch = 20)
+  })
+}
+
+# Save the PDF file
+dev.off()
+
+
+# plotting the 4 categories with padjvalue of 0.1 instead of 0.01
+
+# Opening PDF and defining path
+pdf(file.path("plots/Host_DETs_plots/Host_spleen_DETs_plots/spleen_volcano_padjvalue<0.1.pdf"), 
+    width = 12, height = 12)  
+
+
+for (i in 2:length(list_of_results_spleen)) {
+  category_name <- resultsNames(dds_spleen)[i]  # Getting the category name
+  result <- list_of_results_spleen[[i]]  # Get results for the current category
+  
+  # Create the volcano plot
+  with(result, {
+    plot(log2FoldChange, -log10(padj), 
+         pch = 20, main = paste("Volcano plot for spleen", category_name), 
+         xlim = c(-3, 3))
+    
+    # Adding colored points: blue if padj < 0.1, red if log2FC > 1 and padj < 0.05)
+    points(log2FoldChange, -log10(padj), pch = 20, 
+           col = ifelse(padj < 0.1, "blue", 
+                        ifelse(abs(log2FoldChange) > 1 & padj < 0.05, "red", "black")))
+    
+    # Customize the legend
+    legend("topright", legend = c("padj < 0.1", "log2FC > 1 & padj < 0.05", "Other"), 
+           col = c("blue", "red", "black"), pch = 20)
+  })
+}
+
+# Closing the PDF
+dev.off() 
+
+
+
+### PCA plots
+
 #First transform the raw count data
 #vst function performs variance stabilizing transformation
 
 
-# PCAs for the 4 categories
+## PCAs for the 4 liver categories
+
+## Opening PDF and setting path
+pdf(file.path("plots/Host_DETs_plots/Host_liver_DETs_plots/Liver_PCA_plots.pdf"), 
+              width = 12, height = 12)
+
+## looping through the categories
 for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
   # Performing variance stabilizing transformation (VST) for the current category
   vs_data_liver <- vst(dds_liver, blind = TRUE)
   
-  # Create the PCA plot
-  pdf_file_name <- paste("plots/", "Liver_", category_name, "_PCA_plot.pdf", sep = "")
-  pdf(pdf_file_name, width = 12, height = 12)
+  # Creating the PCA plot
   
   # Plot PCA using ggplot2
   pca_data_liver <- plotPCA(vs_data_liver, intgroup = category_name, returnData = TRUE)
@@ -587,9 +624,41 @@ for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
   
   print(pca_plot_liver)
   
-  # Close the current PDF file
-  dev.off()
 }
 
-# Close the main PDF file
+# Closing the main PDF file
 dev.off()
+
+
+## PCAs for the 4 spleen categories
+
+## Opening PDF and setting path
+pdf(file.path("plots/Host_DETs_plots/Host_spleen_DETs_plots/Spleen_PCA_plots.pdf"), 
+    width = 12, height = 12)
+
+## looping through the categories
+for (category_name in c("Season", "Age_2category", "Sex", "rpmh_scaled")) {
+  # Performing variance stabilizing transformation (VST) for the current category
+  vs_data_spleen <- vst(dds_spleen, blind = TRUE)
+  
+  # Creating the PCA plot
+  
+  # Plot PCA using ggplot2
+  pca_data_spleen <- plotPCA(vs_data_spleen, intgroup = category_name, returnData = TRUE)
+  
+  # Create the ggplot2 PCA plot and print it
+  pca_plot_spleen <- ggplot(pca_data_spleen, 
+                           aes(x = PC1, y = PC2, color = as.factor(get(category_name)))) +
+    geom_point() +
+    labs(title = paste("PCA plot for spleen", category_name), color = category_name) # sets legend name
+  
+  print(pca_plot_spleen)
+  
+}
+
+# Closing the main PDF file
+dev.off()
+
+
+
+
