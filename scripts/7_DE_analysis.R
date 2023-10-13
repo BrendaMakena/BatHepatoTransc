@@ -113,8 +113,6 @@ DETs_spleen <- c(list_of_spleen_DETs, overall=list(rownames(list_of_results_sple
 
 
 saveRDS(DETs_ALL, "intermediateData/DETs_ALL.RDS")
-saveRDS(DETs_liver, "intermediateData/DETs_liver.RDS")
-saveRDS(DETs_spleen, "intermediateData/DETs_spleen.RDS")
 
 
 

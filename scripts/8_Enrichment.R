@@ -76,11 +76,14 @@ MF_enrichment_tables["spleen:rpmh_scaled"]
 
 MF_enrichment_tables["liver:rpmh_scaled"]
 
+names(MF_enrichment_tables)
+
+
 
 ## let's do one test for the intersection of liver and spleen rpmh_scaled
 
 TOGO.all.onto("MF", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:rpmh_scaled"]], 
+              intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlaping genes (133)
                         DETs_ALL[["spleen:rpmh_scaled"]]),
               gene2GO) %>% gene.table.topGO()
 
@@ -97,6 +100,17 @@ TOGO.all.onto("MF", DETs_ALL[["overall"]],
 ## ## 10 GO:1901681                     sulfur compound binding       168           6     1.70 0.00704 0.04011538
 ## ## > 
 
+
+## for the genes enriched in collagen binding MF, how many of the 133 DETs overlapping between
+## spleen and liver rpmh scaled category, are in our DETs and also annotated as collagen  binding
+table(inGO = allLocusGO$go_id%in%"GO:0005518", 
+      tested = allLocusGO$entrezgene_accession%in%DETs_ALL[["overall"]],
+     DE = allLocusGO$entrezgene_accession%in%
+        intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlaping genes (133)
+                DETs_ALL[["spleen:rpmh_scaled"]]))
+
+          ## 3 DETs
+          ## this can be applied to other interesting enrichment clusters
 
 
 ### looping over the DE gene sets we don't want to run the
@@ -122,6 +136,7 @@ gene.table.topGO <- function(TOGO.list, fdr=0.1){
 ### and run it along the list of Enrichment results
 BP_enrichment_tables <- lapply(BP_enrichment, gene.table.topGO)
 
+names(BP_enrichment_tables)
 
 lapply(BP_enrichment_tables, head)
 
@@ -129,6 +144,10 @@ BP_enrichment_tables["spleen:rpmh_scaled"]
 
 BP_enrichment_tables["liver:rpmh_scaled"]
 
+## and for season category as QC step
+BP_enrichment_tables["liver:Season_Rainy_vs_Dry"]
+
+BP_enrichment_tables["spleen:Season_Rainy_vs_Dry"]
 
 ## doing one test for the intersection of liver and spleen rpmh_scaled
 
@@ -161,6 +180,18 @@ TOGO.all.onto("BP", DETs_ALL[["overall"]],
 ## ##  GO:2000699 fibroblast growth factor receptor signal...         1           1     0.01 0.00991 0.01548437
 ## ## >
 
+
+## for the genes enriched in cellular response to heparin BP, how many of the 133 DETs overlapping between
+## spleen and liver rpmh scaled category, are in our DETs and also annotated as responsible for cellular 
+## response to heparin
+table(inGO = allLocusGO$go_id%in%"GO:0071504", 
+      tested = allLocusGO$entrezgene_accession%in%DETs_ALL[["overall"]],
+      DE = allLocusGO$entrezgene_accession%in%
+        intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlaping genes (133)
+                  DETs_ALL[["spleen:rpmh_scaled"]]))
+
+                      ## 2 DETs
+                      ## this can be applied to other interesting enrichment clusters
 
 
 ### looping over the DE gene sets we don't want to run the
@@ -197,7 +228,7 @@ CC_enrichment_tables["liver:rpmh_scaled"]
 ## doing one test for the intersection of liver and spleen rpmh_scaled
 
 TOGO.all.onto("CC", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:rpmh_scaled"]], 
+              intersect(DETs_ALL[["liver:rpmh_scaled"]], ## 133 overlapping genes
                         DETs_ALL[["spleen:rpmh_scaled"]]),
               gene2GO) %>% gene.table.topGO()
 
@@ -212,3 +243,18 @@ TOGO.all.onto("CC", DETs_ALL[["overall"]],
 ## ## GO:0030312 external encapsulating structure       319           9     3.17  0.0044 0.08800000
 ## ## GO:0005840                         ribosome       217           7     2.15  0.0058 0.09666667
 ## ## > 
+
+
+## for the genes enriched in interstitial matrix CC, how many of the 133 DETs overlapping between
+## spleen and liver rpmh scaled category, are in our DETs and also annotated as being in the cellular 
+## compartment interstitial matrix
+table(inGO = allLocusGO$go_id%in%"GO:0005614", 
+      tested = allLocusGO$entrezgene_accession%in%DETs_ALL[["overall"]],
+      DE = allLocusGO$entrezgene_accession%in%
+        intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlaping genes (133)
+                  DETs_ALL[["spleen:rpmh_scaled"]]))
+
+                ## 2 DETs
+                ## this can be applied to other interesting enrichment clusters
+
+
