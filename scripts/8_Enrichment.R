@@ -113,6 +113,27 @@ table(inGO = allLocusGO$go_id%in%"GO:0005518",
           ## this can be applied to other interesting enrichment clusters
 
 
+## listing the names of the 3 collagen binding DETs that are in 
+##the 133 overlapping liver and spleen DETs in rpmH scaled category
+
+cat("collagen binding DETs:", 
+    names(head(
+      sort(
+        table(
+          allLocusGO$entrezgene_accession[allLocusGO$go_id %in% "GO:0005518" &
+                                            allLocusGO$entrezgene_accession %in% DETs_ALL$overall &
+                                            allLocusGO$entrezgene_accession %in% 
+                                            Reduce(intersect, DETs_ALL[c("liver:rpmh_scaled", "spleen:rpmh_scaled")])
+          ]
+        ), 
+        decreasing = TRUE
+      ), 3
+    )), "\n")
+
+              ## COL14A1, HSD17B12 and LOX genes
+              ## protein IDs on NCBI: NP_066933.1, NP_057226.1 and NP_002308.2 
+              
+
 ### looping over the DE gene sets we don't want to run the
 ### tests for the intercepts or the overall
 ## running the biological process ontology analysis
