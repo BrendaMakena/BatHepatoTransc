@@ -97,7 +97,7 @@ list_of_liver_DETs  <- lapply(list_of_results_liver, function(rdf){
   rownames(rdf[rdf$padj< 0.1,])
 })
 
-# list of transcripts with significant p value for all the conditions
+# list of spleen transcripts with significant p value for all the conditions
 list_of_spleen_DETs  <- lapply(list_of_results_spleen, function(rdf){
   rdf <- rdf[!is.na(rdf$padj),]
   rownames(rdf[rdf$padj< 0.1,])
@@ -145,11 +145,11 @@ getOverlapMatrix(list_of_DETs[grep("spleen", names(list_of_DETs))])
 
 getOverlapMatrix(list_of_DETs)
 
-## overlap table of liver vs spleen rpmh scaled categories
+## overlap table of liver vs spleen infection intensity categories
 table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:rpmh_scaled"]],
       liver=rownames(list_of_results[[1]])%in%list_of_DETs[["liver:rpmh_scaled"]])
 
-## the 133 DETs overlapping between liver vs spleen rpmh scaled category are statistically significant
+## the 133 DETs overlapping between liver vs spleen infection intensity category are statistically significant
 chisq.test(table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:rpmh_scaled"]],
                  liver=rownames(list_of_results[[1]])%in%list_of_DETs[["liver:rpmh_scaled"]]))
                       
@@ -161,8 +161,8 @@ chisq.test(table(spleen=rownames(list_of_results[[1]])%in%list_of_DETs[["spleen:
 
 # Defining category names (excluding "Intercept")
 category_names <- c("Season(Rainy vs Dry)", 
-                    "Age 2category(Young vs Adult)", 
-                    "Sex (Male vs Female)", "rpmh scaled")
+                    "Age(Young vs Adult)", 
+                    "Sex(Male vs Female)", "Infection intensity")
 
 # Defining colors for each category
 category_colors <- c("yellow", "green", "red", "purple")
@@ -225,8 +225,8 @@ dev.off()  # Closing the PDF device
 
 # Defining category names
 category_names <- c("Season(Rainy vs Dry)", 
-                    "Age 2category(Young vs Adult)", 
-                    "Sex (Male vs Female)", "rpmh scaled")
+                    "Age(Young vs Adult)", 
+                    "Sex(Male vs Female)", "Infection intensity")
 
 # Defining colors for each category
 category_colors <- c("yellow", "green", "red", "purple")
@@ -275,6 +275,8 @@ for (i in 1:(length(category_names))) {
 ## closing the PDF and saving the combined Venn diagrams PDF
 dev.off()
 
+
+
 ## loop for spleen categories
 
 # Saving the Venn diagram as a PDF file
@@ -320,21 +322,21 @@ dev.off()
 
 
 
-# Creating Venn diagram for the liver vs spleen rpmh scaled category
+# Creating Venn diagram for the liver vs spleen infection intensity category
 venn.plotliver_vs_spleen_rpmh_scaled <- venn.diagram(
   x = list(liver = list_of_liver_DETs[["liver:rpmh_scaled"]],
            spleen = list_of_spleen_DETs[["spleen:rpmh_scaled"]]),
   category.names = c("liver", "spleen"),
   filename = NULL,
   output = FALSE, # Prevents the creation of log files
-  col = "gold",
-  fill = "gold",
+  col = "blue",
+  fill = "blue",
   annotation.cex = 1.2,  # Adjust the font size as needed
-  main = "Venn diagram of liver vs spleen DETs rpmh scaled"
+  main = "Venn diagram of liver vs spleen DETs infection intensity"
 )
 
 # Saving the Venn diagram as a PDF file
-pdf(paste0("plots/Venn_liver_vs_spleen_rpmh_scaled.pdf"), width = 8, height = 8)
+pdf(paste0("plots/Venn_liver_vs_spleen_infection_intensity.pdf"), width = 8, height = 8)
 grid.draw(venn.plotliver_vs_spleen_rpmh_scaled)
 dev.off()  # Close the PDF device
 
@@ -364,6 +366,7 @@ for (i in 2:length(list_of_results_liver)) {
 
 # Closing the PDF device
 dev.off()
+
 
 ## MA plots for spleen DETs
 
@@ -396,9 +399,9 @@ resultsNames(dds_spleen)
 # Mapping between category names and coefficient names
 category_coefficients <- c(
   "Season(Rainy vs Dry)" = "Season_Rainy_vs_Dry",
-  "Age 2category(Young vs Adult)" = "Age_2category_Young_vs_Adult",
-  "Sex (Male vs Female)" = "Sex_Male_vs_Female",
-  "rpmh scaled" = "rpmh_scaled"
+  "Age(Young vs Adult)" = "Age_2category_Young_vs_Adult",
+  "Sex(Male vs Female)" = "Sex_Male_vs_Female",
+  "infection intensity" = "rpmh_scaled"
 )
 
 ## opening pdf file and setting path

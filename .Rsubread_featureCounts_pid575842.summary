@@ -1,0 +1,15 @@
+Status	/SAN/RNASeqHepatoCy/HepatoTranscriptome/RNASeq_liver_and_spleen/STAR/E.labiatus_and_Hepatocystis_bat/E.labiatus_and_Hepatocystis_trinity_denovo_transcriptome_STARmapped/fastp_DMR855_PG_spleen_S3.STAR/fastp_DMR855_PG_spleen_S3.STAR_Aligned.sortedByCoord.out.bam
+Assigned	6058338
+Unassigned_Unmapped	4523889
+Unassigned_Read_Type	0
+Unassigned_Singleton	0
+Unassigned_MappingQuality	0
+Unassigned_Chimera	0
+Unassigned_FragmentLength	0
+Unassigned_Duplicate	0
+Unassigned_MultiMapping	0
+Unassigned_Secondary	0
+Unassigned_NonSplit	0
+Unassigned_NoFeatures	41451876
+Unassigned_Overlapping_Length	0
+Unassigned_Ambiguity	0

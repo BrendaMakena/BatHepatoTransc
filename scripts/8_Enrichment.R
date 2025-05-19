@@ -18,7 +18,7 @@ if(redoAnnotation){
 }
 
 if(redoDE){
-    source("scripts/DE_analysis.R")
+    source("scripts/7_DE_analysis.R")
 } else {
   DETs_ALL  <- readRDS("intermediateData/DETs_ALL.RDS")
 }
