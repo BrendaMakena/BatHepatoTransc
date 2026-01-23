@@ -254,12 +254,14 @@ venn.plotliver_vs_spleen_rpmh_scaled <- venn.diagram(
   output = FALSE, # Prevents the creation of log files
   col = "blue",
   fill = "blue",
-  annotation.cex = 1.2,  # Adjust the font size as needed
+  cex = 2.5,        # the size of the numbers in the diagram
+  cat.cex = 2.5,    # the size of the category labels
+  main.cex = 1.6,     # the size of the title
   main = "Venn diagram of liver vs spleen DETs infection intensity category"
 )
 
 # Saving the Venn diagram as a PDF file
-pdf(paste0("plots/Venn_liver_vs_spleen_infection_intensity.pdf"), width = 8, height = 8)
+pdf(paste0("plots/Venn_liver_vs_spleen_infection_intensity.pdf"), width = 10, height = 10)
 grid.draw(venn.plotliver_vs_spleen_rpmh_scaled)
 dev.off()  # Close the PDF device
 
@@ -274,12 +276,14 @@ venn.plotliver_vs_spleen_season_rainy_vs_dry <- venn.diagram(
   output = FALSE, # Prevents the creation of log files
   col = "orange",
   fill = "orange",
-  annotation.cex = 1.2,  # Adjust the font size as needed
+  cex = 2.5,        # the size of the numbers in the diagram
+  cat.cex = 2.5,    # the size of the category labels
+  main.cex = 1.6,     # the size of the title
   main = "Venn diagram of liver vs spleen DETs season rainy vs dry"
 )
 
 # Saving the Venn diagram as a PDF file
-pdf(paste0("plots/Venn_liver_vs_spleen_season_rainy_vs_dry.pdf"), width = 8, height = 8)
+pdf(paste0("plots/Venn_liver_vs_spleen_season_rainy_vs_dry.pdf"), width = 10, height = 10)
 grid.draw(venn.plotliver_vs_spleen_season_rainy_vs_dry)
 dev.off()  # Close the PDF device
 
@@ -294,12 +298,14 @@ venn.plotliver_vs_spleen_age_category_young_vs_adult <- venn.diagram(
   output = FALSE, # Prevents the creation of log files
   col = "purple",
   fill = "purple",
-  annotation.cex = 1.2,  # Adjust the font size as needed
+  cex = 2.5,        # the size of the numbers in the diagram
+  cat.cex = 2.5,    # the size of the category labels
+  main.cex = 1.6,     # the size of the title
   main = "Venn diagram of liver vs spleen DETs age category youngs vs adults"
 )
 
 # Saving the Venn diagram as a PDF file
-pdf(paste0("plots/Venn_liver_vs_spleen_age_category_young_vs_adult.pdf"), width = 8, height = 8)
+pdf(paste0("plots/Venn_liver_vs_spleen_age_category_young_vs_adult.pdf"), width = 10, height = 10)
 grid.draw(venn.plotliver_vs_spleen_age_category_young_vs_adult)
 dev.off()  # Close the PDF device
 
@@ -314,12 +320,14 @@ venn.plotliver_vs_spleen_sex_male_vs_female <- venn.diagram(
   output = FALSE, # Prevents the creation of log files
   col = "green",
   fill = "green",
-  annotation.cex = 1.2,  # Adjust the font size as needed
+  cex = 2.5,        # the size of the numbers in the diagram
+  cat.cex = 2.5,    # the size of the category labels
+  main.cex = 1.6,     # the size of the title
   main = "Venn diagram of liver vs spleen DETs sex category males vs females"
 )
 
 # Saving the Venn diagram as a PDF file
-pdf(paste0("plots/Venn_liver_vs_spleen_sex_male_vs_female.pdf"), width = 8, height = 8)
+pdf(paste0("plots/Venn_liver_vs_spleen_sex_male_vs_female.pdf"), width = 10, height = 10)
 grid.draw(venn.plotliver_vs_spleen_sex_male_vs_female)
 dev.off()  # Close the PDF device
 

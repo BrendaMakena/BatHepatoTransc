@@ -102,7 +102,7 @@ TOGO.all.onto("MF", DETs_ALL[["overall"]],
 
 
 ## for the genes enriched in collagen binding MF, how many of the 133 DETs overlapping between
-## spleen and liver rpmh scaled category, are in our DETs and also annotated as collagen  binding
+## spleen and liver infection intensity category, are in our DETs and also annotated as collagen binding
 table(inGO = allLocusGO$go_id%in%"GO:0005518", 
       tested = allLocusGO$entrezgene_accession%in%DETs_ALL[["overall"]],
      DE = allLocusGO$entrezgene_accession%in%
@@ -114,7 +114,7 @@ table(inGO = allLocusGO$go_id%in%"GO:0005518",
 
 
 ## listing the names of the 3 collagen binding DETs that are in 
-##the 133 overlapping liver and spleen DETs in rpmH scaled category
+##the 133 overlapping liver and spleen DETs in infection intensity category
 
 cat("collagen binding DETs:", 
     names(head(
@@ -123,7 +123,8 @@ cat("collagen binding DETs:",
           allLocusGO$entrezgene_accession[allLocusGO$go_id %in% "GO:0005518" &
                                             allLocusGO$entrezgene_accession %in% DETs_ALL$overall &
                                             allLocusGO$entrezgene_accession %in% 
-                                            Reduce(intersect, DETs_ALL[c("liver:rpmh_scaled", "spleen:rpmh_scaled")])
+                                            Reduce(intersect, DETs_ALL[c("liver:rpmh_scaled", 
+                                                                         "spleen:rpmh_scaled")])
           ]
         ), 
         decreasing = TRUE
@@ -172,7 +173,7 @@ table(inGO = allLocusGO$go_id%in%"GO:0016491",
 
 
 
-## listing the names of the 19 collagen binding DETs that are in 
+## listing the names of the 19 oxidoreductase activity DETs that are in 
 ##the 251 overlapping liver and spleen DETs in season category
 
 cat("oxidoreductase activity DETs:", 
@@ -380,15 +381,15 @@ TOGO.all.onto("BP", DETs_ALL[["overall"]],
 ## ##   GO:0030199                collagen fibril organization        47           4     0.47 0.00117 0.01548437
 ## ##   GO:0010043                        response to zinc ion        25           3     0.25 0.00185 0.01548437
 ## ##   GO:0120178        steroid hormone biosynthetic process        25           3     0.25 0.00185 0.01548437
-## ##  GO:2000586 regulation of platelet-derived growth fa...         7           2     0.07 0.00198 0.01548437
-## ##  GO:0098758                   response to interleukin-8         1           1     0.01 0.00991 0.01548437
-## ##  GO:0098759          cellular response to interleukin-8         1           1     0.01 0.00991 0.01548437
-## ##  GO:0099502 calcium-dependent activation of synaptic...         1           1     0.01 0.00991 0.01548437
-## ##  GO:1901634 positive regulation of synaptic vesicle ...         1           1     0.01 0.00991 0.01548437
-## ##  GO:1901875 positive regulation of post-translationa...         1           1     0.01 0.00991 0.01548437
-## ##  GO:2000607 negative regulation of cell proliferatio...         1           1     0.01 0.00991 0.01548437
-## ##  GO:2000683    regulation of cellular response to X-ray         1           1     0.01 0.00991 0.01548437
-## ##  GO:2000699 fibroblast growth factor receptor signal...         1           1     0.01 0.00991 0.01548437
+## ##   GO:2000586 regulation of platelet-derived growth fa...         7           2     0.07 0.00198 0.01548437
+## ##   GO:0098758                   response to interleukin-8         1           1     0.01 0.00991 0.01548437
+## ##   GO:0098759          cellular response to interleukin-8         1           1     0.01 0.00991 0.01548437
+## ##   GO:0099502 calcium-dependent activation of synaptic...         1           1     0.01 0.00991 0.01548437
+## ##   GO:1901634 positive regulation of synaptic vesicle ...         1           1     0.01 0.00991 0.01548437
+## ##   GO:1901875 positive regulation of post-translationa...         1           1     0.01 0.00991 0.01548437
+## ##   GO:2000607 negative regulation of cell proliferatio...         1           1     0.01 0.00991 0.01548437
+## ##   GO:2000683    regulation of cellular response to X-ray         1           1     0.01 0.00991 0.01548437
+## ##   GO:2000699 fibroblast growth factor receptor signal...         1           1     0.01 0.00991 0.01548437
 ## ## >
 
 
@@ -563,7 +564,7 @@ TOGO.all.onto("BP", DETs_ALL[["overall"]],
 
 
 
-#   GO.ID                                        Term Annotated Significant Expected p.value        fdr
+#           GO.ID                                        Term Annotated Significant Expected p.value    fdr
 #   1   GO:0006999                   nuclear pore organization        15           2     0.04 0.00085 0.02742105
 #   2   GO:0044249               cellular biosynthetic process      5193          24    15.20 0.00116 0.02742105
 #   3   GO:1901576      organic substance biosynthetic process      5252          24    15.37 0.00142 0.02742105
@@ -862,7 +863,7 @@ cat("nuclear pore outer ring DETs:",
     names(head(
       sort(
         table(
-          allLocusGO$entrezgene_accession[allLocusGO$go_id %in% "GO:0005615" &
+          allLocusGO$entrezgene_accession[allLocusGO$go_id %in% "GO:0031080" &
                                             allLocusGO$entrezgene_accession %in% DETs_ALL$overall &
                                             allLocusGO$entrezgene_accession %in% 
                                             Reduce(intersect, DETs_ALL[c("liver:Sex_Male_vs_Female", 
@@ -873,5 +874,5 @@ cat("nuclear pore outer ring DETs:",
       ), 2
     )), "\n")
 
-##  nuclear pore outer ring DETs: F2 IGFBP2 
-## protein IDs on NCBI:  NP_000497.1  NP_000588.3 
+##  nuclear pore outer ring DETs: AHCTF1 NUP133  
+## protein IDs on NCBI:  NP_001310271.1 NP_060700.2
