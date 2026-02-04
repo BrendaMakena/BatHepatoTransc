@@ -6,6 +6,9 @@ library(topGO)
 library(org.Hs.eg.db)  # Loads the appropriate organism annotation package (e.g., human)
 library(GO.db)
 library(magrittr)
+library(ggplot2)
+library(dplyr)
+library(stringr)
 
 redoDE <- FALSE
 redoAnnotation <- FALSE
@@ -34,13 +37,13 @@ gene2GO <- by(allLocusGO, allLocusGO$entrezgene_accession,
 ### "CC" = cellular compartment. allgenes is always our complete set
 ### of tested genes and annot always our annotation list
 TOGO.all.onto <- function (ontology, allgenes, gene.set, annot) {
-  g <- factor(as.integer( allgenes%in%gene.set ))
+  g <- factor(as.integer(allgenes%in%gene.set ))
   names(g) <- allgenes
   toGO <-  new("topGOdata", ontology = ontology, allGenes = g, 
                annot = annFUN.gene2GO,
                gene2GO = annot)
   resultFis <- runTest(toGO, algorithm = "classic", statistic = "fisher")
-  list(toGO, resultFis) ## returns a list first data then result
+  list(GOdata = toGO, result = resultFis) ## returns a list first data then result
 }
 
 ### now we can loop over the DE gene sets, we don't want to run the
@@ -57,11 +60,12 @@ MF_enrichment <- lapply(DETs_ALL[!grepl("Intercept|overall", names(DETs_ALL))],
 
 ### now a function to perform correction for multiple testing and to
 ### extract a table from the results
-gene.table.topGO <- function(TOGO.list, fdr=0.1){
-    all <- GenTable(TOGO.list[[1]], TOGO.list[[2]], topNodes=100)
-    names(all)[names(all)%in%"result1"] <- "p.value"
-    all$fdr <- p.adjust(all$p.value, method="BH")
-    return(all[all$fdr<fdr,])
+gene.table.topGO <- function(topGO.obj, fdr=0.1){
+    tab <- GenTable(topGO.obj$GOdata, topGO.obj$result, topNodes=100)
+    names(tab)[names(tab) == "result1"] <- "p.value"
+    tab$p.value <- as.numeric(tab$p.value)
+    tab$fdr <- p.adjust(tab$p.value, method="BH")
+    return(tab[tab$fdr<fdr,])
 }
 
 
@@ -80,12 +84,17 @@ names(MF_enrichment_tables)
 
 
 
-## let's do one test for the intersection of liver and spleen infection intensity
+#### let's do one test for the intersection of liver and spleen infection intensity ####
 
-TOGO.all.onto("MF", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlaping genes (133)
+MF_liver_spleen_infection_intensity <- TOGO.all.onto("MF", DETs_ALL[["overall"]],
+              intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlapping genes (133)
                         DETs_ALL[["spleen:rpmh_scaled"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO)
+              
+## extracting the table for the MF intersection for liver and spleen infection intensity category
+MF_tab_liver_spleen_infection_intensity <- gene.table.topGO(MF_liver_spleen_infection_intensity)
+MF_tab_liver_spleen_infection_intensity$logP <- -log10(MF_tab_liver_spleen_infection_intensity$p.value)              
+
 
 ## ##       GO.ID                                        Term Annotated Significant Expected p.value        fdr
 ## ## 1  GO:0070325       lipoprotein particle receptor binding        25           4     0.25 0.00011 0.01050000
@@ -106,7 +115,7 @@ TOGO.all.onto("MF", DETs_ALL[["overall"]],
 table(inGO = allLocusGO$go_id%in%"GO:0005518", 
       tested = allLocusGO$entrezgene_accession%in%DETs_ALL[["overall"]],
      DE = allLocusGO$entrezgene_accession%in%
-        intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlaping genes (133)
+        intersect(DETs_ALL[["liver:rpmh_scaled"]], ### overlapping genes (133)
                 DETs_ALL[["spleen:rpmh_scaled"]]))
 
           ## 3 DETs
@@ -137,15 +146,59 @@ cat("collagen binding DETs:",
 ## protein IDs on NCBI: NP_066933.1, NP_057226.1 and NP_002308.2 
               
 
+### dot (bubble) plot for the MF intersection of liver and spleen infection intensity DETs
+MF_tab_liver_spleen_infection_intensity$Term_wrapped <- str_wrap(MF_tab_liver_spleen_infection_intensity$Term, 
+                                                                 width = 100)
 
-##Doing the test for the intersection of liver and spleen season category
+topN <- min(50, nrow(MF_tab_liver_spleen_infection_intensity))
 
-TOGO.all.onto("MF", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:Season_Rainy_vs_Dry"]], ### overlaping genes (251)
+MF_liver_spleen_infection_intensity_dotplot <- ggplot(MF_tab_liver_spleen_infection_intensity[1:topN, ],
+       aes(x = logP,
+           y = reorder(Term_wrapped, logP),
+           size = Significant)
+       ) +
+  geom_point(color = "orange") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "MF_liver_spleen_infection_intensity_dotplot",
+    x = "-log10(p-value)",
+    y = "Molecular Function",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_infection_intensity_dotplot.pdf", 
+       MF_liver_spleen_infection_intensity_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_infection_intensity_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  MF_liver_spleen_infection_intensity$GOdata,
+  score(MF_liver_spleen_infection_intensity$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("MF liver and spleen infection intensity GO DAG plot")
+
+dev.off()
+
+
+#### Doing the test for the intersection of liver and spleen season category ####
+MF_liver_spleen_season <- TOGO.all.onto("MF", DETs_ALL[["overall"]],
+              intersect(DETs_ALL[["liver:Season_Rainy_vs_Dry"]], ### overlapping genes (251)
                         DETs_ALL[["spleen:Season_Rainy_vs_Dry"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
 
-
+## extracting the table for the MF intersection for liver and spleen infection intensity category
+MF_tab_liver_spleen_season <- gene.table.topGO(MF_liver_spleen_season)
+MF_tab_liver_spleen_season$logP <- -log10(MF_tab_liver_spleen_season$p.value)              
 
 #     GO.ID                                        Term       Annotated   Significant Expected p.value  fdr
 # 1   GO:0016491                     oxidoreductase activity       463          24     8.59   5e-06 0.000500000
@@ -166,7 +219,7 @@ TOGO.all.onto("MF", DETs_ALL[["overall"]],
 table(inGO = allLocusGO$go_id%in%"GO:0016491", 
       tested = allLocusGO$entrezgene_accession%in%DETs_ALL[["overall"]],
       DE = allLocusGO$entrezgene_accession%in%
-        intersect(DETs_ALL[["liver:Season_Rainy_vs_Dry"]], ### overlaping genes (251)
+        intersect(DETs_ALL[["liver:Season_Rainy_vs_Dry"]], ### overlapping genes (251)
                   DETs_ALL[["spleen:Season_Rainy_vs_Dry"]]))
 
 ## 19 DETs
@@ -196,15 +249,60 @@ cat("oxidoreductase activity DETs:",
 ## protein IDs on NCBI: NP_115545.3  NP_003491.1 NP_001189342.1 NP_001257293.1  NP_110446.3 
 
 
+### dot (bubble) plot for the MF intersection of liver and spleen season DETs
+MF_tab_liver_spleen_season$Term_wrapped <- str_wrap(MF_tab_liver_spleen_season$Term, 
+                                                                 width = 100)
+
+topN <- min(50, nrow(MF_tab_liver_spleen_season))
+
+MF_liver_spleen_season_dotplot <- ggplot(MF_tab_liver_spleen_season[1:topN, ],
+                                                      aes(x = logP,
+                                                          y = reorder(Term_wrapped, logP),
+                                                          size = Significant)
+                                  ) +
+                                    geom_point(color = "blue") +
+                                    theme_bw(base_size = 12) +
+                                    labs(
+                                      title = "MF_liver_spleen_season_dotplot",
+                                      x = "-log10(p-value)",
+                                      y = "Molecular Function",
+                                      size = "Significant genes"
+                                    ) +
+                                    theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
 
 
-## The test for the intersection of liver and spleen age category
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_season_dotplot.pdf", 
+       MF_liver_spleen_season_dotplot, width = 8, height = 10, dpi = 300)
 
-TOGO.all.onto("MF", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:Age_2category_Young_vs_Adult"]], ### overlaping genes (2137)
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen season MF
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_season_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  MF_liver_spleen_season$GOdata,
+  score(MF_liver_spleen_season$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("MF liver and spleen season GO DAG plot")
+
+dev.off()
+
+
+#### The test for the intersection of liver and spleen age category MF ####
+
+MF_liver_spleen_age <- TOGO.all.onto("MF", DETs_ALL[["overall"]],
+              intersect(DETs_ALL[["liver:Age_2category_Young_vs_Adult"]], ### overlapping genes (2137)
                         DETs_ALL[["spleen:Age_2category_Young_vs_Adult"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
 
+## extracting the table for the MF intersection for liver and spleen age category
+MF_tab_liver_spleen_age <- gene.table.topGO(MF_liver_spleen_age)
+MF_tab_liver_spleen_age$logP <- -log10(MF_tab_liver_spleen_age$p.value) 
 
 
 #       GO.ID                                        Term       Annotated   Significant Expected p.value  fdr
@@ -260,13 +358,60 @@ cat("RNA binding DETs:",
 ## protein IDs on NCBI: NP_001185747.1  NP_001596.2  NP_065796.2 NP_001265281.1  NP_001152757.1
 
 
+### dot (bubble) plot for the MF intersection of liver and spleen age DETs
+MF_tab_liver_spleen_age$Term_wrapped <- str_wrap(MF_tab_liver_spleen_age$Term, 
+                                                    width = 100)
 
-## The test for the intersection of liver and spleen sex category
+topN <- min(50, nrow(MF_tab_liver_spleen_age))
 
-TOGO.all.onto("MF", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:Sex_Male_vs_Female"]], ### overlaping genes (48)
+MF_liver_spleen_age_dotplot <- ggplot(MF_tab_liver_spleen_age[1:topN, ],
+                                         aes(x = logP,
+                                             y = reorder(Term_wrapped, logP),
+                                             size = Significant)
+) +
+  geom_point(color = "red") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "MF_liver_spleen_age_dotplot",
+    x = "-log10(p-value)",
+    y = "Molecular Function",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_age_dotplot.pdf", 
+       MF_liver_spleen_age_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen age MF
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_age_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  MF_liver_spleen_age$GOdata,
+  score(MF_liver_spleen_age$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("MF liver and spleen age GO DAG plot")
+
+dev.off()
+
+
+#### The test for the intersection of liver and spleen sex category ####
+
+MF_liver_spleen_sex <- TOGO.all.onto("MF", DETs_ALL[["overall"]],
+              intersect(DETs_ALL[["liver:Sex_Male_vs_Female"]], ### overlapping genes (48)
                         DETs_ALL[["spleen:Sex_Male_vs_Female"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
+
+## extracting the table for the MF intersection for liver and spleen sex category
+MF_tab_liver_spleen_sex <- gene.table.topGO(MF_liver_spleen_sex)
+MF_tab_liver_spleen_sex$logP <- -log10(MF_tab_liver_spleen_sex$p.value) 
 
 
 #         GO.ID                                 Term            Annotated   Significant Expected p.value  fdr
@@ -319,6 +464,49 @@ cat("dioxygenase activity DETs:",
 
 
 
+### dot (bubble) plot for the MF intersection of liver and spleen sex DETs
+MF_tab_liver_spleen_sex$Term_wrapped <- str_wrap(MF_tab_liver_spleen_sex$Term, 
+                                                 width = 100)
+
+topN <- min(50, nrow(MF_tab_liver_spleen_sex))
+
+MF_liver_spleen_sex_dotplot <- ggplot(MF_tab_liver_spleen_sex[1:topN, ],
+                                      aes(x = logP,
+                                          y = reorder(Term_wrapped, logP),
+                                          size = Significant)
+) +
+  geom_point(color = "purple") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "MF_liver_spleen_sex_dotplot",
+    x = "-log10(p-value)",
+    y = "Molecular Function",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_sex_dotplot.pdf", 
+       MF_liver_spleen_sex_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen age MF
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/MF_liver_spleen_sex_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  MF_liver_spleen_sex$GOdata,
+  score(MF_liver_spleen_sex$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("MF liver and spleen sex GO DAG plot")
+
+dev.off()
+
 
 #### Enrichment analysis for the DETs for the BP category #### 
 
@@ -334,13 +522,13 @@ BP_enrichment <- lapply(DETs_ALL[!grepl("Intercept|overall", names(DETs_ALL))],
 
 ### now a function to perform correction for multiple testing and to
 ### extract a table from the results
-gene.table.topGO <- function(TOGO.list, fdr=0.1){
-  all <- GenTable(TOGO.list[[1]], TOGO.list[[2]], topNodes=100)
-  names(all)[names(all)%in%"result1"] <- "p.value"
-  all$fdr <- p.adjust(all$p.value, method="BH")
-  return(all[all$fdr<fdr,])
+gene.table.topGO <- function(topGO.obj, fdr=0.1){
+  tab <- GenTable(topGO.obj$GOdata, topGO.obj$result, topNodes=100)
+  names(tab)[names(tab) == "result1"] <- "p.value"
+  tab$p.value <- as.numeric(tab$p.value)
+  tab$fdr <- p.adjust(tab$p.value, method="BH")
+  return(tab[tab$fdr<fdr,])
 }
-
 
 
 ### and run it along the list of Enrichment results
@@ -361,15 +549,17 @@ BP_enrichment_tables["spleen:Season_Rainy_vs_Dry"]
 
 
 
-## doing the test for the intersection of liver and spleen infection intensity category
-
-TOGO.all.onto("BP", DETs_ALL[["overall"]],
-              intersect(DETs_ALL[["liver:rpmh_scaled"]], 
+## doing the test for the intersection of liver and spleen infection intensity category BP
+BP_liver_spleen_infection_intensity <- TOGO.all.onto("BP", DETs_ALL[["overall"]],
+              intersect(DETs_ALL[["liver:rpmh_scaled"]],    ### overlapping genes (133)
                         DETs_ALL[["spleen:rpmh_scaled"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
+
+## extracting the table for the BP intersection for liver and spleen infection intensity category
+BP_tab_liver_spleen_infection_intensity <- gene.table.topGO(BP_liver_spleen_infection_intensity)
+BP_tab_liver_spleen_infection_intensity$logP <- -log10(BP_tab_liver_spleen_infection_intensity$p.value) 
 
 
-## sample output
 
 ## ##         GO.ID                                        Term Annotated Significant Expected p.value    fdr
 ## ##   GO:0071504                cellular response to heparin         4           2     0.04 0.00058 0.01548437
@@ -428,14 +618,62 @@ cat("cellular response to heparin DETs:",
 ## protein IDs on NCBI: NP_001955.1 NP_001276064.1 
 
 
+### dot (bubble) plot for the BP intersection of liver and spleen infection intensity DETs
+BP_tab_liver_spleen_infection_intensity$Term_wrapped <- str_wrap(BP_tab_liver_spleen_infection_intensity$Term, 
+                                                                 width = 100)
+
+topN <- min(50, nrow(BP_tab_liver_spleen_infection_intensity))
+
+BP_liver_spleen_infection_intensity_dotplot <- ggplot(BP_tab_liver_spleen_infection_intensity[1:topN, ],
+                                                      aes(x = logP,
+                                                          y = reorder(Term_wrapped, logP),
+                                                          size = Significant)
+) +
+  geom_point(color = "orange") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "BP_liver_spleen_infection_intensity_dotplot",
+    x = "-log10(p-value)",
+    y = "Biological process",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
 
 
-## doing the test for the intersection of liver and spleen season category
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_infection_intensity_dotplot.pdf", 
+       BP_liver_spleen_infection_intensity_dotplot, width = 8, height = 10, dpi = 300)
 
-TOGO.all.onto("BP", DETs_ALL[["overall"]],
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_infection_intensity_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  BP_liver_spleen_infection_intensity$GOdata,
+  score(BP_liver_spleen_infection_intensity$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("BP liver and spleen infection intensity GO DAG plot")
+
+dev.off()
+
+
+
+#### doing the test for the intersection of liver and spleen season category BP ####
+
+BP_liver_spleen_season <- TOGO.all.onto("BP", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:Season_Rainy_vs_Dry"]], 
                         DETs_ALL[["spleen:Season_Rainy_vs_Dry"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
+
+
+## extracting the table for the BP intersection for liver and spleen season category
+BP_tab_liver_spleen_season <- gene.table.topGO(BP_liver_spleen_season)
+BP_tab_liver_spleen_season$logP <- -log10(BP_tab_liver_spleen_season$p.value)
 
 
 #           GO.ID                                 Term          Annotated   Significant Expected p.value    fdr
@@ -491,14 +729,60 @@ cat("bile acid biosynthetic process DETs:",
 ## protein IDs on NCBI: NP_003733.2  NP_003491.1 NP_001032900.1 NP_001007099.1 NP_001153101.1 NP_001308125.1
 
 
+### dot (bubble) plot for the BP intersection of liver and spleen season DETs
+BP_tab_liver_spleen_season$Term_wrapped <- str_wrap(BP_tab_liver_spleen_season$Term, 
+                                                    width = 100)
 
-## doing the test for the intersection of liver and spleen age category BP DETs
+topN <- min(50, nrow(BP_tab_liver_spleen_season))
 
-TOGO.all.onto("BP", DETs_ALL[["overall"]],
+BP_liver_spleen_season_dotplot <- ggplot(BP_tab_liver_spleen_season[1:topN, ],
+                                         aes(x = logP,
+                                             y = reorder(Term_wrapped, logP),
+                                             size = Significant)
+) +
+  geom_point(color = "blue") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "BP_liver_spleen_season_dotplot",
+    x = "-log10(p-value)",
+    y = "Biological process",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_season_dotplot.pdf", 
+       BP_liver_spleen_season_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen season BP
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_season_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  BP_liver_spleen_season$GOdata,
+  score(BP_liver_spleen_season$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("BP liver and spleen season GO DAG plot")
+
+dev.off()
+
+
+#### doing the test for the intersection of liver and spleen age category BP DETs ####
+
+BP_liver_spleen_age <- TOGO.all.onto("BP", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:Age_2category_Young_vs_Adult"]], 
                         DETs_ALL[["spleen:Age_2category_Young_vs_Adult"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
 
+## extracting the table for the MF intersection for liver and spleen age category
+BP_tab_liver_spleen_age <- gene.table.topGO(BP_liver_spleen_age)
+BP_tab_liver_spleen_age$logP <- -log10(BP_tab_liver_spleen_age$p.value) 
 
 
 #           GO.ID                                 Term          Annotated   Significant Expected p.value    fdr
@@ -554,14 +838,62 @@ cat("cell division DETs:",
 
 
 
+### dot (bubble) plot for the BP intersection of liver and spleen age DETs
+BP_tab_liver_spleen_age$Term_wrapped <- str_wrap(BP_tab_liver_spleen_age$Term, 
+                                                 width = 100)
 
-## doing the test for the intersection of liver and spleen sex category BP DETs
+topN <- min(50, nrow(BP_tab_liver_spleen_age))
 
-TOGO.all.onto("BP", DETs_ALL[["overall"]],
+BP_liver_spleen_age_dotplot <- ggplot(BP_tab_liver_spleen_age[1:topN, ],
+                                      aes(x = logP,
+                                          y = reorder(Term_wrapped, logP),
+                                          size = Significant)
+) +
+  geom_point(color = "red") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "BP_liver_spleen_age_dotplot",
+    x = "-log10(p-value)",
+    y = "Biological process",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_age_dotplot.pdf", 
+       BP_liver_spleen_age_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen age BP
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_age_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  BP_liver_spleen_age$GOdata,
+  score(BP_liver_spleen_age$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("BP liver and spleen age GO DAG plot")
+
+dev.off()
+
+
+
+#### doing the test for the intersection of liver and spleen sex category BP DETs #### 
+
+BP_liver_spleen_sex <- TOGO.all.onto("BP", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:Sex_Male_vs_Female"]], 
                         DETs_ALL[["spleen:Sex_Male_vs_Female"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
 
+
+## extracting the table for the BP intersection for liver and spleen sex category
+BP_tab_liver_spleen_sex <- gene.table.topGO(BP_liver_spleen_sex)
+BP_tab_liver_spleen_sex$logP <- -log10(BP_tab_liver_spleen_sex$p.value) 
 
 
 #           GO.ID                                        Term Annotated Significant Expected p.value    fdr
@@ -617,11 +949,53 @@ cat("cellular biosynthetic process DETs:",
 ## protein IDs on NCBI: NP_001308470.1
 
 
+### dot (bubble) plot for the BP intersection of liver and spleen sex DETs
+BP_tab_liver_spleen_sex$Term_wrapped <- str_wrap(BP_tab_liver_spleen_sex$Term, 
+                                                 width = 100)
 
+topN <- min(50, nrow(BP_tab_liver_spleen_sex))
+
+BP_liver_spleen_sex_dotplot <- ggplot(BP_tab_liver_spleen_sex[1:topN, ],
+                                      aes(x = logP,
+                                          y = reorder(Term_wrapped, logP),
+                                          size = Significant)
+) +
+  geom_point(color = "purple") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "BP_liver_spleen_sex_dotplot",
+    x = "-log10(p-value)",
+    y = "Biological process",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_sex_dotplot.pdf", 
+       BP_liver_spleen_sex_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen age BP
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/BP_liver_spleen_sex_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  BP_liver_spleen_sex$GOdata,
+  score(BP_liver_spleen_sex$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("BP liver and spleen sex GO DAG plot")
+
+dev.off()
 
 
 #### looping over the DE gene sets we don't want to run the ####
 ### tests for the intercepts or the overall
+
 ## running the cellular compartment ontology analysis
 CC_enrichment <- lapply(DETs_ALL[!grepl("Intercept|overall", names(DETs_ALL))], 
                         function (mySet){
@@ -631,11 +1005,13 @@ CC_enrichment <- lapply(DETs_ALL[!grepl("Intercept|overall", names(DETs_ALL))],
 
 ### now a function to perform correction for multiple testing and to
 ### extract a table from the results
-gene.table.topGO <- function(TOGO.list, fdr=0.1){
-  all <- GenTable(TOGO.list[[1]], TOGO.list[[2]], topNodes=100)
-  names(all)[names(all)%in%"result1"] <- "p.value"
-  all$fdr <- p.adjust(all$p.value, method="BH")
-  return(all[all$fdr<fdr,])
+
+gene.table.topGO <- function(topGO.obj, fdr=0.1){
+  tab <- GenTable(topGO.obj$GOdata, topGO.obj$result, topNodes=100)
+  names(tab)[names(tab) == "result1"] <- "p.value"
+  tab$p.value <- as.numeric(tab$p.value)
+  tab$fdr <- p.adjust(tab$p.value, method="BH")
+  return(tab[tab$fdr<fdr,])
 }
 
 
@@ -652,12 +1028,16 @@ CC_enrichment_tables["spleen:rpmh_scaled"]
 CC_enrichment_tables["liver:rpmh_scaled"]
 
 
-## doing one test for the intersection of liver and spleen infection intensity CC DETs
+#### doing one test for the intersection of liver and spleen infection intensity CC DETs ####
 
-TOGO.all.onto("CC", DETs_ALL[["overall"]],
+CC_liver_spleen_infection_intensity <- TOGO.all.onto("CC", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:rpmh_scaled"]], ## 133 overlapping genes
                         DETs_ALL[["spleen:rpmh_scaled"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
+
+## extracting the table for the CC intersection for liver and spleen infection intensity category
+CC_tab_liver_spleen_infection_intensity <- gene.table.topGO(CC_liver_spleen_infection_intensity)
+CC_tab_liver_spleen_infection_intensity$logP <- -log10(CC_tab_liver_spleen_infection_intensity$p.value) 
 
 
 
@@ -706,12 +1086,62 @@ cat("interstitial matrix DETs:",
 
 
 
-## doing one test for the intersection of liver and spleen season category CC DETs
+### dot (bubble) plot for the CC intersection of liver and spleen infection intensity DETs
+CC_tab_liver_spleen_infection_intensity$Term_wrapped <- str_wrap(CC_tab_liver_spleen_infection_intensity$Term, 
+                                                                 width = 100)
 
-TOGO.all.onto("CC", DETs_ALL[["overall"]],
+topN <- min(50, nrow(CC_tab_liver_spleen_infection_intensity))
+
+CC_liver_spleen_infection_intensity_dotplot <- ggplot(CC_tab_liver_spleen_infection_intensity[1:topN, ],
+                                                      aes(x = logP,
+                                                          y = reorder(Term_wrapped, logP),
+                                                          size = Significant)
+) +
+  geom_point(color = "orange") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "CC_liver_spleen_infection_intensity_dotplot",
+    x = "-log10(p-value)",
+    y = "Cellular compartment",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_infection_intensity_dotplot.pdf", 
+       CC_liver_spleen_infection_intensity_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen CC
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_infection_intensity_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  CC_liver_spleen_infection_intensity$GOdata,
+  score(CC_liver_spleen_infection_intensity$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("CC liver and spleen infection intensity GO DAG plot")
+
+dev.off()
+
+
+
+#### doing one test for the intersection of liver and spleen season category CC DETs #### 
+
+CC_liver_spleen_season <- TOGO.all.onto("CC", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:Season_Rainy_vs_Dry"]], ##  overlapping genes (251)
                         DETs_ALL[["spleen:Season_Rainy_vs_Dry"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO)  
+
+
+## extracting the table for the CC intersection for liver and spleen season category
+CC_tab_liver_spleen_season <- gene.table.topGO(CC_liver_spleen_season)
+CC_tab_liver_spleen_season$logP <- -log10(CC_tab_liver_spleen_season$p.value)
 
 
 
@@ -763,14 +1193,62 @@ cat("extracellular region DETs:",
 ## protein IDs on NCBI: NP_008919.3  NP_000030.1 NP_001307994.1 NP_000474.2  NP_000031.1  NP_001123887.1  
 
 
+### dot (bubble) plot for the CC intersection of liver and spleen season DETs
+CC_tab_liver_spleen_season$Term_wrapped <- str_wrap(CC_tab_liver_spleen_season$Term, 
+                                                    width = 100)
 
-## doing one test for the intersection of liver and spleen age CC DETs
+topN <- min(50, nrow(CC_tab_liver_spleen_season))
 
-TOGO.all.onto("CC", DETs_ALL[["overall"]],
+CC_liver_spleen_season_dotplot <- ggplot(CC_tab_liver_spleen_season[1:topN, ],
+                                         aes(x = logP,
+                                             y = reorder(Term_wrapped, logP),
+                                             size = Significant)
+) +
+  geom_point(color = "blue") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "CC_liver_spleen_season_dotplot",
+    x = "-log10(p-value)",
+    y = "Cellular compartment",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_season_dotplot.pdf", 
+       CC_liver_spleen_season_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen season CC
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_season_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  CC_liver_spleen_season$GOdata,
+  score(CC_liver_spleen_season$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("CC liver and spleen season GO DAG plot")
+
+dev.off()
+
+
+
+#### doing one test for the intersection of liver and spleen age CC DETs #### 
+
+CC_liver_spleen_age <- TOGO.all.onto("CC", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:Age_2category_Young_vs_Adult"]], ##  overlapping genes (2137)
                         DETs_ALL[["spleen:Age_2category_Young_vs_Adult"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
 
+
+## extracting the table for the CC intersection for liver and spleen age category
+CC_tab_liver_spleen_age <- gene.table.topGO(CC_liver_spleen_age)
+CC_tab_liver_spleen_age$logP <- -log10(CC_tab_liver_spleen_age$p.value) 
 
 
 #         GO.ID                                     Term         Annotated Significant Expected p.value    fdr
@@ -826,15 +1304,62 @@ cat("extracellular space DETs:",
 ## protein IDs on NCBI:  NP_570602.2  NP_001092.1  NP_003807.1  NP_001124.1 NP_001369746.2 
 
 
+### dot (bubble) plot for the CC intersection of liver and spleen age DETs
+CC_tab_liver_spleen_age$Term_wrapped <- str_wrap(CC_tab_liver_spleen_age$Term, 
+                                                 width = 100)
+
+topN <- min(50, nrow(CC_tab_liver_spleen_age))
+
+CC_liver_spleen_age_dotplot <- ggplot(CC_tab_liver_spleen_age[1:topN, ],
+                                      aes(x = logP,
+                                          y = reorder(Term_wrapped, logP),
+                                          size = Significant)
+) +
+  geom_point(color = "red") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "CC_liver_spleen_age_dotplot",
+    x = "-log10(p-value)",
+    y = "Cellular compartment",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_age_dotplot.pdf", 
+       CC_liver_spleen_age_dotplot, width = 8, height = 10, dpi = 300)
 
 
 
-## doing one test for the intersection of liver and spleen sex CC DETs
+# GO DAG hierarchy plot for the intersection of liver and spleen age CC
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_age_GO_DAG.pdf", 
+    width = 10, height = 8)
 
-TOGO.all.onto("CC", DETs_ALL[["overall"]],
+par(cex = 0.75)
+
+showSigOfNodes(
+  CC_liver_spleen_age$GOdata,
+  score(CC_liver_spleen_age$result),
+  firstSigNodes = 10,
+  useInfo = "all",)
+
+title("CC liver and spleen age GO DAG plot")
+
+dev.off()
+
+
+
+#### doing one test for the intersection of liver and spleen sex CC DETs ####
+
+CC_liver_spleen_sex <- TOGO.all.onto("CC", DETs_ALL[["overall"]],
               intersect(DETs_ALL[["liver:Sex_Male_vs_Female"]], ##  overlapping genes (48)
                         DETs_ALL[["spleen:Sex_Male_vs_Female"]]),
-              gene2GO) %>% gene.table.topGO()
+              gene2GO) 
+
+
+## extracting the table for the CC intersection for liver and spleen sex category
+CC_tab_liver_spleen_sex <- gene.table.topGO(CC_liver_spleen_sex)
+CC_tab_liver_spleen_sex$logP <- -log10(CC_tab_liver_spleen_sex$p.value) 
 
 
 #         GO.ID                    Term         Annotated Significant Expected p.value  fdr
@@ -876,3 +1401,48 @@ cat("nuclear pore outer ring DETs:",
 
 ##  nuclear pore outer ring DETs: AHCTF1 NUP133  
 ## protein IDs on NCBI:  NP_001310271.1 NP_060700.2
+
+
+
+### dot (bubble) plot for the CC intersection of liver and spleen sex DETs
+CC_tab_liver_spleen_sex$Term_wrapped <- str_wrap(CC_tab_liver_spleen_sex$Term, 
+                                                 width = 100)
+
+topN <- min(50, nrow(CC_tab_liver_spleen_sex))
+
+CC_liver_spleen_sex_dotplot <- ggplot(CC_tab_liver_spleen_sex[1:topN, ],
+                                      aes(x = logP,
+                                          y = reorder(Term_wrapped, logP),
+                                          size = Significant)
+) +
+  geom_point(color = "purple") +
+  theme_bw(base_size = 12) +
+  labs(
+    title = "CC_liver_spleen_sex_dotplot",
+    x = "-log10(p-value)",
+    y = "Cellular compartment",
+    size = "Significant genes"
+  ) +
+  theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+
+ggsave("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_sex_dotplot.pdf", 
+       CC_liver_spleen_sex_dotplot, width = 8, height = 10, dpi = 300)
+
+
+
+# GO DAG hierarchy plot for the intersection of liver and spleen age CC
+pdf("/home/brenda/BatHepatoTransc/plots/Host_DETs_plots/CC_liver_spleen_sex_GO_DAG.pdf", 
+    width = 10, height = 8)
+
+par(cex = 0.75)
+
+showSigOfNodes(
+  CC_liver_spleen_sex$GOdata,
+  score(CC_liver_spleen_sex$result),
+  firstSigNodes = 10,
+  useInfo = "all") 
+  
+title("CC liver and spleen sex GO DAG plot")
+
+dev.off()
